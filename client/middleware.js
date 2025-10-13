@@ -18,19 +18,19 @@ export async function middleware(request) {
   const token = request.cookies.get("token")?.value;
 
   // ✅ Protect admin routes
-  // if (pathname.startsWith("/admin")) {
-  //   if (!token) {
-  //     // No token → redirect to login
-  //     return NextResponse.redirect(new URL("/auth/admin/login", request.url));
-  //   }
+  if (pathname.startsWith("/admin")) {
+    if (!token) {
+      // No token → redirect to login
+      return NextResponse.redirect(new URL("/auth/admin/login", request.url));
+    }
 
-  //   const payload = await verifyJWT(token);
+    const payload = await verifyJWT(token);
 
-  //   if (!payload || payload.role !== "admin") {
-  //     // Invalid token or not admin → redirect
-  //     return NextResponse.redirect(new URL("/auth/admin/login", request.url));
-  //   }
-  // }
+    if (!payload || payload.role !== "admin") {
+      // Invalid token or not admin → redirect
+      return NextResponse.redirect(new URL("/auth/admin/login", request.url));
+    }
+  }
 
   // ✅ Prevent logged-in admins from going to login again
   if (pathname.startsWith("/auth/admin/login")) {
