@@ -28,7 +28,6 @@ app.use(morgan("combined"));
 app.use(
   cors({
     origin: "*",
-    credentials: true,
   })
 );
 app.use(cookieParser());
