@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { FreeMode } from "swiper/modules";
 import "swiper/css";
@@ -8,17 +8,48 @@ import "swiper/css/free-mode";
 import ProductCard from "@/components/home/ProductCard";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useGetAllProductsQuery, useSearchProductQuery } from "@/features/products/productApi";
+import { useGetAllCategoriesQuery, useGetFeaturedCategoriesQuery } from "@/features/category/categoryApi";
 
 const page = () => {
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get('search') || '';
+  
   const [activeFilter, setActiveFilter] = useState("All");
 
-  const filters = [
-    "All",
-    "Hairdryer",
-    "Straightener",
-    "Hair Stylers",
-    "Straight",
-  ];
+  // API calls
+  const { data: productsData, isLoading: productsLoading } = useGetAllProductsQuery();
+  const { data: categoriesData, isLoading: categoriesLoading } = useGetAllCategoriesQuery();
+  const { data: featuredCategoriesData, isLoading: featuredCategoriesLoading } = useGetFeaturedCategoriesQuery();
+  const { data: searchData, isLoading: searchLoading } = useSearchProductQuery(searchQuery, {
+    skip: !searchQuery.trim(),
+  });
+
+  // Get categories for filters - prioritize featured categories
+  const allCategories = categoriesData?.categories || [];
+  const featuredCategories = featuredCategoriesData?.categories || [];
+  const categories = featuredCategories.length > 0 ? featuredCategories : allCategories;
+  const filters = ["All", ...categories.map(cat => cat.name)];
+
+  // Determine which products to show
+  const allProducts = productsData?.products || [];
+  const searchResults = searchData?.data?.products || [];
+  const products = searchQuery.trim() ? searchResults : allProducts;
+
+  // Filter products by category
+  const filteredProducts = activeFilter === "All" 
+    ? products 
+    : products.filter(product => product.category?.name === activeFilter);
+
+  // Show loading state
+  if (productsLoading || categoriesLoading || featuredCategoriesLoading || (searchQuery.trim() && searchLoading)) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-16 py-8">
+        <div className="text-center text-muted-foreground">Loading products...</div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -83,57 +114,45 @@ const page = () => {
       </section>
 
       <section className="container mx-auto px-4 sm:px-6 lg:px-16 py-10">
-        {/* Products Swiper */}
-        <div>
-          <Swiper
-            modules={[FreeMode]}
-            spaceBetween={16}
-            slidesPerView={1.2}
-            freeMode={true}
-            className="products-swiper"
-            breakpoints={{
-              480: {
-                slidesPerView: 1.5,
-                spaceBetween: 16,
-              },
-              640: {
-                slidesPerView: 2.2,
-                spaceBetween: 20,
-              },
-              768: {
-                slidesPerView: 2.5,
-                spaceBetween: 24,
-              },
-              1024: {
-                slidesPerView: 3.5,
-                spaceBetween: 28,
-              },
-              1280: {
-                slidesPerView: 4.5,
-                spaceBetween: 32,
-              },
-            }}
-          >
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-          </Swiper>
-        </div>
+        {/* Search Results Header */}
+        {searchQuery.trim() && (
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-gray-900">
+              Search Results for "{searchQuery}"
+            </h2>
+            <p className="text-gray-600 mt-1">
+              {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
+            </p>
+          </div>
+        )}
+
+        {/* Products Grid */}
+        {filteredProducts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredProducts.map((product) => (
+              <div key={product._id} className="border p-2 rounded-lg">
+                <ProductCard product={product} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-gray-500 mb-4">
+              {searchQuery.trim() 
+                ? `No products found for "${searchQuery}"`
+                : "No products available"
+              }
+            </div>
+            {searchQuery.trim() && (
+              <Link 
+                href="/shop" 
+                className="text-blue-600 hover:text-blue-700 font-medium"
+              >
+                View all products
+              </Link>
+            )}
+          </div>
+        )}
       </section>
     </>
   );

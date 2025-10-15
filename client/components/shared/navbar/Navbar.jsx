@@ -8,6 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, Search, Heart, User, ChevronDown } from "lucide-react";
 import CartSheet from "@/components/shared/cart/CartSheet";
+import SearchResults from "@/components/shared/search/SearchResults";
+import { useGetWishlistCountQuery } from "@/features/wishlist/wishlistApi";
+import { useGetCartCountQuery } from "@/features/cart/cartApi";
+import { Badge } from "@/components/ui/badge";
 
 const navigation = [
   { name: "Home", href: "/" },
@@ -64,6 +68,38 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showMegaMenu, setShowMegaMenu] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  
+  // Get cart and wishlist counts
+  const { data: cartCountData } = useGetCartCountQuery();
+  const { data: wishlistCountData } = useGetWishlistCountQuery();
+  
+  const cartCount = cartCountData?.data?.count || 0;
+  const wishlistCount = wishlistCountData?.data?.count || 0;
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    setShowSearchResults(value.trim().length > 0);
+  };
+
+  const handleSearchFocus = () => {
+    if (searchQuery.trim().length > 0) {
+      setShowSearchResults(true);
+    }
+  };
+
+  const handleSearchBlur = () => {
+    // Delay hiding to allow clicking on results
+    setTimeout(() => {
+      setShowSearchResults(false);
+    }, 200);
+  };
+
+  const closeSearchResults = () => {
+    setShowSearchResults(false);
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-white">
@@ -146,7 +182,17 @@ const Navbar = () => {
                   type="search"
                   placeholder="Search for products..."
                   className="pl-10 pr-4 w-80 border-gray-200 rounded-lg"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  onFocus={handleSearchFocus}
+                  onBlur={handleSearchBlur}
                 />
+                {showSearchResults && (
+                  <SearchResults 
+                    query={searchQuery} 
+                    onClose={closeSearchResults}
+                  />
+                )}
               </div>
             </div>
 
@@ -154,14 +200,22 @@ const Navbar = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="text-gray-600 hover:text-blue-600"
+              className="text-gray-600 hover:text-blue-600 relative"
             >
               <Heart className="h-5 w-5" />
+              {wishlistCount > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                >
+                  {wishlistCount}
+                </Badge>
+              )}
               <span className="sr-only">Wishlist</span>
             </Button>
 
             {/* Cart Sheet */}
-            <CartSheet isOpen={isCartOpen} onOpenChange={setIsCartOpen} />
+            <CartSheet isOpen={isCartOpen} onOpenChange={setIsCartOpen} cartCount={cartCount} />
 
             {/* User Profile Button */}
             <Button
@@ -201,7 +255,17 @@ const Navbar = () => {
                           type="search"
                           placeholder="Search for products..."
                           className="pl-10 pr-4 w-full border-gray-200 rounded-lg"
+                          value={searchQuery}
+                          onChange={handleSearchChange}
+                          onFocus={handleSearchFocus}
+                          onBlur={handleSearchBlur}
                         />
+                        {showSearchResults && (
+                          <SearchResults 
+                            query={searchQuery} 
+                            onClose={closeSearchResults}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>

@@ -12,42 +12,46 @@ import {
 } from "@/components/ui/sheet";
 import { ShoppingCart, X, Plus, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  useGetCartQuery,
+  useUpdateCartItemMutation,
+  useRemoveFromCartMutation,
+  useGetCartCountQuery,
+} from "@/features/cart/cartApi";
+import { toast } from "sonner";
 
-const CartSheet = ({ isOpen, onOpenChange }) => {
-  // Mock cart data - replace with your actual cart state
-  const cartItems = [
-    {
-      id: 1,
-      name: "The Joni High Rise Loose 29L",
-      color: "Black",
-      price: 2500,
-      quantity: 1,
-      image: "/placeholder.jpg",
-    },
-    {
-      id: 2,
-      name: "The Joni High Rise Loose 29L",
-      color: "Black",
-      price: 2500,
-      quantity: 1,
-      image: "/placeholder.jpg",
-    },
-  ];
+const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
+  // Use real API data
+  const { data: cartData, isLoading, isError } = useGetCartQuery();
+  const [updateCartItem] = useUpdateCartItemMutation();
+  const [removeFromCart] = useRemoveFromCartMutation();
 
-  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const cartItems = cartData?.data?.items || [];
+  const totalItems = cartCount;
   const totalPrice = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
 
-  const updateQuantity = (id, newQuantity) => {
-    // Implement quantity update logic
-    console.log(`Update item ${id} to quantity ${newQuantity}`);
+  const updateQuantity = async (productId, newQuantity) => {
+    try {
+      await updateCartItem({
+        productId,
+        quantity: newQuantity,
+      }).unwrap();
+      toast.success("Cart updated");
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to update cart");
+    }
   };
 
-  const removeItem = (id) => {
-    // Implement remove item logic
-    console.log(`Remove item ${id}`);
+  const removeItem = async (productId) => {
+    try {
+      await removeFromCart(productId).unwrap();
+      toast.success("Item removed from cart");
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to remove item");
+    }
   };
 
   return (
@@ -81,7 +85,15 @@ const CartSheet = ({ isOpen, onOpenChange }) => {
           </SheetTitle>
         </SheetHeader>
 
-        {cartItems.length === 0 ? (
+        {isLoading ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center">
+            <div className="text-muted-foreground">Loading cart...</div>
+          </div>
+        ) : isError ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center">
+            <div className="text-red-500">Error loading cart</div>
+          </div>
+        ) : cartItems.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center">
             <ShoppingCart className="h-16 w-16 text-gray-300 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -100,14 +112,14 @@ const CartSheet = ({ isOpen, onOpenChange }) => {
             <div className="flex-1 overflow-y-auto py-4 space-y-4">
               {cartItems.map((item) => (
                 <div
-                  key={item.id}
+                  key={item.product._id}
                   className="flex gap-4 p-4 border border-gray-200 rounded-lg"
                 >
                   {/* Product Image */}
                   <div className="flex-shrink-0">
                     <Image
-                      src={item.image}
-                      alt={item.name}
+                      src={item.product.images?.[0] || "/placeholder.jpg"}
+                      alt={item.product.name}
                       width={80}
                       height={80}
                       className="w-20 h-20 object-cover rounded-lg bg-gray-100"
@@ -119,12 +131,14 @@ const CartSheet = ({ isOpen, onOpenChange }) => {
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className="font-medium text-gray-900 text-sm leading-tight">
-                          {item.name}
+                          {item.product.name}
                         </h4>
-                        <p className="text-sm text-gray-500">{item.color}</p>
+                        <p className="text-sm text-gray-500">
+                          {item.product.category?.name || 'No category'}
+                        </p>
                       </div>
                       <button
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => removeItem(item.product._id)}
                         className="text-gray-400 hover:text-red-500 transition-colors"
                       >
                         <span className="text-xs">Remove</span>
@@ -137,7 +151,7 @@ const CartSheet = ({ isOpen, onOpenChange }) => {
                         <button
                           onClick={() =>
                             updateQuantity(
-                              item.id,
+                              item.product._id,
                               Math.max(1, item.quantity - 1)
                             )
                           }
@@ -150,7 +164,7 @@ const CartSheet = ({ isOpen, onOpenChange }) => {
                         </span>
                         <button
                           onClick={() =>
-                            updateQuantity(item.id, item.quantity + 1)
+                            updateQuantity(item.product._id, item.quantity + 1)
                           }
                           className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors"
                         >

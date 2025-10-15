@@ -29,27 +29,40 @@ import ProductSpecificationCard from "@/components/product/ProductSpecificationC
 import ProductInfoCard from "@/components/product/ProductInfoCard";
 import ProductCard from "@/components/home/ProductCard";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useGetAllProductsQuery } from "@/features/products/productApi";
+import { useAddToCartMutation } from "@/features/cart/cartApi";
+import { useAddToWishlistMutation, useCheckWishlistStatusQuery } from "@/features/wishlist/wishlistApi";
+import { toast } from "sonner";
 
 const page = () => {
+  const params = useParams();
+  const productId = params.id;
+  
   const [quantity, setQuantity] = useState(1);
   const [selectedColor, setSelectedColor] = useState("black");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showLessSpecs, setShowLessSpecs] = useState(false);
   const [showLessDescription, setShowLessDescription] = useState(false);
 
-  const colors = [
+  // API calls
+  const { data: productsData, isLoading: productsLoading } = useGetAllProductsQuery();
+  const [addToCart, { isLoading: isAddingToCart }] = useAddToCartMutation();
+  const [addToWishlist, { isLoading: isAddingToWishlist }] = useAddToWishlistMutation();
+  const { data: wishlistStatus } = useCheckWishlistStatusQuery(productId);
+
+  // Find the current product
+  const products = productsData?.products || [];
+  const product = products.find(p => p._id === productId);
+  const relatedProducts = products.filter(p => p._id !== productId && p.category?._id === product?.category?._id).slice(0, 6);
+
+  // Dynamic data from product
+  const images = product?.images || ["/img/product.png"];
+  const colors = product?.colors || [
     { name: "black", value: "#000000" },
     { name: "blue", value: "#3B82F6" },
     { name: "white", value: "#FFFFFF" },
     { name: "navy", value: "#1E3A8A" },
-  ];
-
-  const images = [
-    "https://plus.unsplash.com/premium_photo-1664392147011-2a720f214e01?q=80&w=878&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    "https://plus.unsplash.com/premium_photo-1664392147011-2a720f214e01?q=80&w=878&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    "https://plus.unsplash.com/premium_photo-1664392147011-2a720f214e01?q=80&w=878&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    "https://plus.unsplash.com/premium_photo-1664392147011-2a720f214e01?q=80&w=878&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
   ];
 
   const handleQuantityChange = (type) => {
@@ -70,6 +83,55 @@ const page = () => {
     }
   };
 
+  const handleAddToCart = async () => {
+    if (!product) return;
+    
+    try {
+      await addToCart({
+        productId: product._id,
+        quantity: quantity,
+      }).unwrap();
+      toast.success("Product added to cart");
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to add to cart");
+    }
+  };
+
+  const handleAddToWishlist = async () => {
+    if (!product) return;
+    
+    try {
+      await addToWishlist(product._id).unwrap();
+      toast.success("Product added to wishlist");
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to add to wishlist");
+    }
+  };
+
+  // Loading state
+  if (productsLoading) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-16 py-8">
+        <div className="text-center text-muted-foreground">Loading product...</div>
+      </div>
+    );
+  }
+
+  // Product not found
+  if (!product) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-16 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Product not found</h1>
+          <p className="text-gray-600 mb-6">The product you're looking for doesn't exist.</p>
+          <Link href="/shop" className="text-blue-600 hover:text-blue-700">
+            Continue Shopping
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="container mx-auto px-4 sm:px-6 lg:px-16 py-4">
@@ -84,7 +146,7 @@ const page = () => {
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>Product Details</BreadcrumbPage>
+              <BreadcrumbPage>{product.name}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -132,7 +194,7 @@ const page = () => {
               <div className="h-96 md:h-[500px] lg:h-[550px] bg-gray-200 rounded-lg overflow-hidden relative">
                 <Image
                   src={images[currentImageIndex]}
-                  alt="Dyson Hairdryer"
+                  alt={product.name}
                   fill
                   className="object-cover"
                 />
@@ -158,15 +220,15 @@ const page = () => {
           <div className="space-y-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                Dyson Hairdryer
+                {product.name}
               </h1>
               <div className="flex items-center gap-4 mt-2">
                 <span className="text-2xl font-semibold text-gray-900">
-                  Rs. 899
+                  ₹{product.price}
                 </span>
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm text-gray-600">4.5 ratings</span>
+                  <span className="text-sm text-gray-600">{product.rating || 4.5} ratings</span>
                 </div>
               </div>
             </div>
@@ -194,8 +256,10 @@ const page = () => {
 
             {/* Stock Status */}
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-green-600">In stock</span>
+              <div className={`w-2 h-2 rounded-full ${product.stock > 0 ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className={`text-sm ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {product.stock > 0 ? 'In stock' : 'Out of stock'}
+              </span>
             </div>
 
             {/* Quantity Selector and Add to Cart */}
@@ -218,8 +282,12 @@ const page = () => {
                 </button>
               </div>
 
-              <Button className="flex-1 bg-[#174986] text-white py-3 rounded-sm">
-                Add to Cart <ShoppingCart className="ml-2" />
+              <Button 
+                className="flex-1 bg-[#174986] text-white py-3 rounded-sm"
+                onClick={handleAddToCart}
+                disabled={isAddingToCart || product.stock <= 0}
+              >
+                {isAddingToCart ? "Adding..." : "Add to Cart"} <ShoppingCart className="ml-2" />
               </Button>
             </div>
 
@@ -228,9 +296,11 @@ const page = () => {
               <Button
                 variant="outline"
                 className="flex items-center bg-[#E6E6E6] justify-center gap-2 rounded-sm"
+                onClick={handleAddToWishlist}
+                disabled={isAddingToWishlist}
               >
-                <Heart className="w-4 h-4" />
-                Wishlist
+                <Heart className={`w-4 h-4 ${wishlistStatus?.data?.isInWishlist ? 'fill-red-500 text-red-500' : ''}`} />
+                {isAddingToWishlist ? "Adding..." : "Wishlist"}
               </Button>
               <Button
                 variant="outline"
@@ -360,44 +430,7 @@ const page = () => {
             <div className="pt-2">
               <div className="prose prose-gray max-w-none">
                 <p className="text-gray-700 text-sm leading-relaxed mb-4">
-                  The Dyson Hairdryer represents the pinnacle of hair styling
-                  technology, combining innovative engineering with elegant
-                  design. This professional-grade hair dryer is engineered to
-                  deliver fast, controlled drying while protecting your hair
-                  from extreme heat damage.
-                </p>
-
-                <p className="text-gray-700 text-sm leading-relaxed mb-4">
-                  Featuring Dyson's signature digital motor V9, this hairdryer
-                  spins at up to 110,000rpm, generating powerful airflow for
-                  fast drying. The intelligent heat control technology measures
-                  air temperature over 40 times a second, ensuring consistent
-                  heat distribution and preventing extreme heat damage that can
-                  occur with traditional hair dryers.
-                </p>
-
-                <p className="text-gray-700 text-sm leading-relaxed mb-4">
-                  The innovative Air Multiplier technology amplifies airflow by
-                  3x, creating a high-pressure, high-velocity jet of controlled
-                  air for precision styling. Whether you're looking to achieve a
-                  smooth blowout, add volume, or create defined curls, this
-                  versatile tool adapts to your styling needs.
-                </p>
-
-                <p className="text-gray-700 text-sm leading-relaxed mb-4">
-                  Designed with user comfort in mind, the Dyson Hairdryer
-                  features an ergonomic handle and balanced weight distribution,
-                  making it comfortable to use for extended styling sessions.
-                  The magnetic attachments allow for quick and easy switching
-                  between different styling tools, including the smoothing
-                  nozzle, styling concentrator, and diffuser.
-                </p>
-
-                <p className="text-gray-700 text-sm leading-relaxed">
-                  With its sleek, modern aesthetic and professional performance,
-                  the Dyson Hairdryer is the perfect addition to any beauty
-                  routine. Experience salon-quality results from the comfort of
-                  your own home with this revolutionary hair styling tool.
+                  {product.description || "No description available for this product."}
                 </p>
               </div>
             </div>
@@ -417,56 +450,49 @@ const page = () => {
           </Link>
         </div>
 
-        {/* Recent Purchases Swiper */}
+        {/* Related Products Swiper */}
         <div>
-          <Swiper
-            modules={[FreeMode]}
-            spaceBetween={16}
-            slidesPerView={1.2}
-            freeMode={true}
-            className="products-swiper"
-            breakpoints={{
-              480: {
-                slidesPerView: 1.5,
-                spaceBetween: 16,
-              },
-              640: {
-                slidesPerView: 2.2,
-                spaceBetween: 20,
-              },
-              768: {
-                slidesPerView: 2.5,
-                spaceBetween: 24,
-              },
-              1024: {
-                slidesPerView: 3.5,
-                spaceBetween: 28,
-              },
-              1280: {
-                slidesPerView: 4.5,
-                spaceBetween: 32,
-              },
-            }}
-          >
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-          </Swiper>
+          {relatedProducts.length > 0 ? (
+            <Swiper
+              modules={[FreeMode]}
+              spaceBetween={16}
+              slidesPerView={1.2}
+              freeMode={true}
+              className="products-swiper"
+              breakpoints={{
+                480: {
+                  slidesPerView: 1.5,
+                  spaceBetween: 16,
+                },
+                640: {
+                  slidesPerView: 2.2,
+                  spaceBetween: 20,
+                },
+                768: {
+                  slidesPerView: 2.5,
+                  spaceBetween: 24,
+                },
+                1024: {
+                  slidesPerView: 3.5,
+                  spaceBetween: 28,
+                },
+                1280: {
+                  slidesPerView: 4.5,
+                  spaceBetween: 32,
+                },
+              }}
+            >
+              {relatedProducts.map((relatedProduct) => (
+                <SwiperSlide key={relatedProduct._id} className="border p-2 rounded-lg">
+                  <ProductCard product={relatedProduct} />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              No related products found
+            </div>
+          )}
         </div>
       </section>
     </>

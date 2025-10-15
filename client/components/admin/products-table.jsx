@@ -87,14 +87,14 @@ export function ProductsTable() {
 
   // Determine which data to display
   const displayData = debouncedSearchQuery.trim()
-    ? searchData?.data
+    ? searchData
     : allProductsData;
 
   // Debug logging
   useEffect(() => {
     if (debouncedSearchQuery.trim() && searchData) {
       console.log("Search Data:", searchData);
-      console.log("Products from search:", searchData?.data?.products);
+      console.log("Products from search:", searchData?.products);
     }
   }, [searchData, debouncedSearchQuery]);
 
@@ -298,7 +298,7 @@ export function ProductsTable() {
                 </TableCell>
               </TableRow>
             )}
-            {displayData?.products?.map((product, index) => (
+            {displayData?.products?.filter(product => product && product._id).map((product, index) => (
               <TableRow key={product._id}>
                 <TableCell>
                   <Checkbox

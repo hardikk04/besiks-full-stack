@@ -17,6 +17,19 @@ const getCategories = async (req, res) => {
   }
 };
 
+// @desc    Get featured categories (active categories)
+// @route   GET /api/categories/featured
+// @access  Public
+const getFeaturedCategories = async (req, res) => {
+  try {
+    const categories = await Category.find({ isActive: true }).sort("sortOrder");
+    res.json({ success: true, categories });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send({ sucess: false, message: "Server error" });
+  }
+};
+
 // @desc    Search categories by name
 // @route   GET /api/categories/search
 // @access  Private (Admin only)
@@ -237,8 +250,10 @@ const updateCategoryStatus = async (req, res) => {
   }
 };
 
+
 module.exports = {
   getCategories,
+  getFeaturedCategories,
   searchCategories,
   getCategoryById,
   createCategory,

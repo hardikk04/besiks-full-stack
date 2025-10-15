@@ -8,8 +8,12 @@ import { FreeMode } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/free-mode";
 import Categories from "@/components/home/Categories";
+import { useGetAllProductsQuery } from "@/features/products/productApi";
 
 const page = () => {
+  const { data: productsData, isLoading, isError } = useGetAllProductsQuery();
+  const products = (productsData?.products || []).filter(product => product && product._id);
+
   return (
     <>
       <Categories />
@@ -21,54 +25,51 @@ const page = () => {
 
         {/* Recent Purchases Swiper */}
         <div>
-          <Swiper
-            modules={[FreeMode]}
-            spaceBetween={16}
-            slidesPerView={1.2}
-            freeMode={true}
-            className="products-swiper"
-            breakpoints={{
-              480: {
-                slidesPerView: 1.5,
-                spaceBetween: 16,
-              },
-              640: {
-                slidesPerView: 2.2,
-                spaceBetween: 20,
-              },
-              768: {
-                slidesPerView: 2.5,
-                spaceBetween: 24,
-              },
-              1024: {
-                slidesPerView: 3.5,
-                spaceBetween: 28,
-              },
-              1280: {
-                slidesPerView: 4.5,
-                spaceBetween: 32,
-              },
-            }}
-          >
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-            <SwiperSlide className="border p-2 rounded-lg">
-              <ProductCard />
-            </SwiperSlide>
-          </Swiper>
+          {isLoading ? (
+            <div className="text-center text-muted-foreground py-8">
+              Loading products...
+            </div>
+          ) : isError ? (
+            <div className="text-center text-red-500 py-8">
+              Error loading products
+            </div>
+          ) : (
+            <Swiper
+              modules={[FreeMode]}
+              spaceBetween={16}
+              slidesPerView={1.2}
+              freeMode={true}
+              className="products-swiper"
+              breakpoints={{
+                480: {
+                  slidesPerView: 1.5,
+                  spaceBetween: 16,
+                },
+                640: {
+                  slidesPerView: 2.2,
+                  spaceBetween: 20,
+                },
+                768: {
+                  slidesPerView: 2.5,
+                  spaceBetween: 24,
+                },
+                1024: {
+                  slidesPerView: 3.5,
+                  spaceBetween: 28,
+                },
+                1280: {
+                  slidesPerView: 4.5,
+                  spaceBetween: 32,
+                },
+              }}
+            >
+              {products.slice(0, 6).map((product) => (
+                <SwiperSlide key={product._id} className="border p-2 rounded-lg">
+                  <ProductCard product={product} />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          )}
         </div>
       </section>
 
@@ -127,48 +128,51 @@ const page = () => {
         </div>
 
         {/* New for you Swiper */}
-        <Swiper
-          modules={[FreeMode]}
-          spaceBetween={16}
-          slidesPerView={1.2}
-          freeMode={true}
-          className="products-swiper"
-          breakpoints={{
-            480: {
-              slidesPerView: 1.5,
-              spaceBetween: 16,
-            },
-            640: {
-              slidesPerView: 2.2,
-              spaceBetween: 20,
-            },
-            768: {
-              slidesPerView: 2.5,
-              spaceBetween: 24,
-            },
-            1024: {
-              slidesPerView: 3.5,
-              spaceBetween: 28,
-            },
-            1280: {
-              slidesPerView: 4.5,
-              spaceBetween: 32,
-            },
-          }}
-        >
-          <SwiperSlide className="border p-2 rounded-lg">
-            <ProductCard />
-          </SwiperSlide>
-          <SwiperSlide className="border p-2 rounded-lg">
-            <ProductCard />
-          </SwiperSlide>
-          <SwiperSlide className="border p-2 rounded-lg">
-            <ProductCard />
-          </SwiperSlide>
-          <SwiperSlide className="border p-2 rounded-lg">
-            <ProductCard />
-          </SwiperSlide>
-        </Swiper>
+        {isLoading ? (
+          <div className="text-center text-muted-foreground py-8">
+            Loading products...
+          </div>
+        ) : isError ? (
+          <div className="text-center text-red-500 py-8">
+            Error loading products
+          </div>
+        ) : (
+          <Swiper
+            modules={[FreeMode]}
+            spaceBetween={16}
+            slidesPerView={1.2}
+            freeMode={true}
+            className="products-swiper"
+            breakpoints={{
+              480: {
+                slidesPerView: 1.5,
+                spaceBetween: 16,
+              },
+              640: {
+                slidesPerView: 2.2,
+                spaceBetween: 20,
+              },
+              768: {
+                slidesPerView: 2.5,
+                spaceBetween: 24,
+              },
+              1024: {
+                slidesPerView: 3.5,
+                spaceBetween: 28,
+              },
+              1280: {
+                slidesPerView: 4.5,
+                spaceBetween: 32,
+              },
+            }}
+          >
+            {products.slice(6, 10).map((product) => (
+              <SwiperSlide key={product._id} className="border p-2 rounded-lg">
+                <ProductCard product={product} />
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        )}
       </section>
     </>
   );

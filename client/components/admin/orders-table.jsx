@@ -18,80 +18,29 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
-
-// Enhanced sample orders with more CA-relevant data
-const sampleOrders = [
-  {
-    id: "ORD-001",
-    customer: "John Doe",
-    email: "john@example.com",
-    phone: "+1234567890",
-    total: 149.98,
-    subtotal: 127.1,
-    tax: 22.88,
-    discount: 0,
-    status: "Processing",
-    date: "2024-01-15",
-    items: 2,
-    paymentMethod: "Credit Card",
-    shippingAddress: "123 Main St, City, State 12345",
-    billingAddress: "123 Main St, City, State 12345",
-    orderItems: [
-      { name: "Wireless Headphones", quantity: 1, price: 99.99, sku: "WH-001" },
-      { name: "Phone Case", quantity: 1, price: 27.11, sku: "PC-002" },
-    ],
-  },
-  {
-    id: "ORD-002",
-    customer: "Jane Smith",
-    email: "jane@example.com",
-    phone: "+1234567891",
-    total: 89.99,
-    subtotal: 76.27,
-    tax: 13.72,
-    discount: 10.0,
-    status: "Shipped",
-    date: "2024-01-14",
-    items: 1,
-    paymentMethod: "PayPal",
-    shippingAddress: "456 Oak Ave, Town, State 54321",
-    billingAddress: "456 Oak Ave, Town, State 54321",
-    orderItems: [{ name: "T-Shirt", quantity: 1, price: 89.99, sku: "TS-003" }],
-  },
-  {
-    id: "ORD-003",
-    customer: "Bob Johnson",
-    email: "bob@example.com",
-    phone: "+1234567892",
-    total: 234.5,
-    subtotal: 198.73,
-    tax: 35.77,
-    discount: 25.0,
-    status: "Delivered",
-    date: "2024-01-13",
-    items: 3,
-    paymentMethod: "Bank Transfer",
-    shippingAddress: "789 Pine Rd, Village, State 98765",
-    billingAddress: "789 Pine Rd, Village, State 98765",
-    orderItems: [
-      { name: "Laptop", quantity: 1, price: 199.99, sku: "LP-001" },
-      { name: "Mouse", quantity: 1, price: 29.99, sku: "MS-002" },
-      { name: "Keyboard", quantity: 1, price: 29.99, sku: "KB-003" },
-    ],
-  },
-];
+import {
+  useGetAllOrdersQuery,
+  useUpdateOrderToDeliveredMutation,
+} from "@/features/orders/orderApi";
 
 export function OrdersTable({ onExportPDF, onExportExcel }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+  
+  // Use real API data
+  const { data: ordersData, isLoading, isError } = useGetAllOrdersQuery();
+  const [updateOrderToDelivered] = useUpdateOrderToDeliveredMutation();
+  
+  const orders = ordersData?.data || [];
+  
   // Filter orders based on search query
-  const filteredOrders = sampleOrders.filter(
+  const filteredOrders = orders.filter(
     (order) =>
-      order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase())
+      order._id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.user?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.status?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.paymentMethod?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const exportToPDF = async (dateFilter = null) => {
@@ -103,10 +52,10 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
       const doc = new jsPDF();
 
       // Filter orders based on date range if provided
-      let filteredOrders = sampleOrders;
+      let filteredOrders = orders;
       if (dateFilter && dateFilter.startDate && dateFilter.endDate) {
-        filteredOrders = sampleOrders.filter((order) => {
-          const orderDate = new Date(order.date);
+        filteredOrders = orders.filter((order) => {
+          const orderDate = new Date(order.createdAt);
           const startDate = new Date(dateFilter.startDate);
           const endDate = new Date(dateFilter.endDate);
           return orderDate >= startDate && orderDate <= endDate;
@@ -144,15 +93,15 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
       ];
 
       const tableRows = filteredOrders.map((order) => [
-        order.id,
-        order.customer,
-        order.email,
-        `₹${order.total}`,
+        order._id,
+        order.user?.name || 'N/A',
+        order.user?.email || 'N/A',
+        `₹${order.totalAmount}`,
         `₹${order.subtotal}`,
-        `₹${order.tax}`,
-        `₹${order.discount}`,
+        `₹${order.taxAmount}`,
+        `₹${order.discountAmount || 0}`,
         order.status,
-        order.date,
+        new Date(order.createdAt).toLocaleDateString(),
         order.paymentMethod,
       ]);
 
@@ -194,15 +143,15 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
 
       const totalOrders = filteredOrders.length;
       const totalRevenue = filteredOrders.reduce(
-        (sum, order) => sum + order.total,
+        (sum, order) => sum + order.totalAmount,
         0
       );
       const totalTax = filteredOrders.reduce(
-        (sum, order) => sum + order.tax,
+        (sum, order) => sum + order.taxAmount,
         0
       );
       const totalDiscount = filteredOrders.reduce(
-        (sum, order) => sum + order.discount,
+        (sum, order) => sum + (order.discountAmount || 0),
         0
       );
 
@@ -241,10 +190,10 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
 
     try {
       // Filter orders based on date range if provided
-      let filteredOrders = sampleOrders;
+      let filteredOrders = orders;
       if (dateFilter && dateFilter.startDate && dateFilter.endDate) {
-        filteredOrders = sampleOrders.filter((order) => {
-          const orderDate = new Date(order.date);
+        filteredOrders = orders.filter((order) => {
+          const orderDate = new Date(order.createdAt);
           const startDate = new Date(dateFilter.startDate);
           const endDate = new Date(dateFilter.endDate);
           return orderDate >= startDate && orderDate <= endDate;
@@ -255,20 +204,20 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
 
       // Prepare data for Excel
       const worksheetData = filteredOrders.map((order) => ({
-        "Order ID": order.id,
-        "Customer Name": order.customer,
-        Email: order.email,
-        Phone: order.phone,
-        "Total Amount": order.total,
+        "Order ID": order._id,
+        "Customer Name": order.user?.name || 'N/A',
+        Email: order.user?.email || 'N/A',
+        Phone: order.user?.phone || 'N/A',
+        "Total Amount": order.totalAmount,
         Subtotal: order.subtotal,
-        "Tax Amount": order.tax,
-        Discount: order.discount,
+        "Tax Amount": order.taxAmount,
+        Discount: order.discountAmount || 0,
         Status: order.status,
-        "Order Date": order.date,
+        "Order Date": new Date(order.createdAt).toLocaleDateString(),
         "Payment Method": order.paymentMethod,
-        "Items Count": order.items,
-        "Shipping Address": order.shippingAddress,
-        "Billing Address": order.billingAddress,
+        "Items Count": order.orderItems?.length || 0,
+        "Shipping Address": order.shippingAddress || 'N/A',
+        "Billing Address": order.billingAddress || 'N/A',
       }));
 
       // Create workbook and worksheet
@@ -287,19 +236,19 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
         {
           Metric: "Total Revenue",
           Value: filteredOrders
-            .reduce((sum, order) => sum + order.total, 0)
+            .reduce((sum, order) => sum + order.totalAmount, 0)
             .toFixed(2),
         },
         {
           Metric: "Total Tax Collected",
           Value: filteredOrders
-            .reduce((sum, order) => sum + order.tax, 0)
+            .reduce((sum, order) => sum + order.taxAmount, 0)
             .toFixed(2),
         },
         {
           Metric: "Total Discounts",
           Value: filteredOrders
-            .reduce((sum, order) => sum + order.discount, 0)
+            .reduce((sum, order) => sum + (order.discountAmount || 0), 0)
             .toFixed(2),
         },
         {
@@ -307,7 +256,7 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
           Value:
             filteredOrders.length > 0
               ? (
-                  filteredOrders.reduce((sum, order) => sum + order.total, 0) /
+                  filteredOrders.reduce((sum, order) => sum + order.totalAmount, 0) /
                   filteredOrders.length
                 ).toFixed(2)
               : "0.00",
@@ -329,16 +278,16 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
       // Add order items sheet
       const itemsData = [];
       filteredOrders.forEach((order) => {
-        order.orderItems.forEach((item) => {
+        order.orderItems?.forEach((item) => {
           itemsData.push({
-            "Order ID": order.id,
-            Customer: order.customer,
-            "Item Name": item.name,
-            SKU: item.sku,
+            "Order ID": order._id,
+            Customer: order.user?.name || 'N/A',
+            "Item Name": item.product?.name || 'N/A',
+            SKU: item.product?.sku || 'N/A',
             Quantity: item.quantity,
             "Unit Price": item.price,
             "Total Price": (item.quantity * item.price).toFixed(2),
-            "Order Date": order.date,
+            "Order Date": new Date(order.createdAt).toLocaleDateString(),
           });
         });
       });
@@ -377,6 +326,16 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
     window.exportOrdersPDF = exportToPDF;
     window.exportOrdersExcel = exportToExcel;
   }, []);
+
+  const handleDeliverOrder = async (orderId) => {
+    try {
+      await updateOrderToDelivered(orderId).unwrap();
+      toast.success("Order marked as delivered");
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to update order status");
+    }
+  };
+
   return (
     <div className="px-4 lg:px-6">
       <div className="flex flex-1 items-center gap-2 pb-4">
@@ -392,7 +351,7 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
         </div>
         {searchQuery && (
           <div className="text-sm text-muted-foreground">
-            {filteredOrders.length} of {sampleOrders.length} orders
+            {filteredOrders.length} of {orders.length} orders
           </div>
         )}
         {isExporting && (
@@ -414,7 +373,19 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredOrders.length === 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8">
+                  <div className="text-muted-foreground">Loading orders...</div>
+                </TableCell>
+              </TableRow>
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8">
+                  <div className="text-red-500">Error loading orders</div>
+                </TableCell>
+              </TableRow>
+            ) : filteredOrders.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={8}
@@ -427,27 +398,27 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
               </TableRow>
             ) : (
               filteredOrders.map((order, index) => (
-                <TableRow key={order.id}>
+                <TableRow key={order._id}>
                   <TableCell>{index + 1}</TableCell>
                   <TableCell className="font-mono font-medium">
-                    <Link href={"/admin/orders/aasdfasdf"}>{order.id}</Link>
+                    <Link href={`/admin/orders/${order._id}`}>{order._id}</Link>
                   </TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{order.customer}</div>
+                      <div className="font-medium">{order.user?.name || 'N/A'}</div>
                       <div className="text-sm text-muted-foreground">
-                        {order.email}
+                        {order.user?.email || 'N/A'}
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{order.items} items</TableCell>
-                  <TableCell className="font-medium">₹{order.total}</TableCell>
+                  <TableCell>{order.orderItems?.length || 0} items</TableCell>
+                  <TableCell className="font-medium">₹{order.totalAmount}</TableCell>
                   <TableCell>
                     <Badge
                       variant={
-                        order.status === "Delivered"
+                        order.status === "delivered"
                           ? "default"
-                          : order.status === "Shipped"
+                          : order.status === "shipped"
                           ? "secondary"
                           : "outline"
                       }
@@ -455,13 +426,18 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
                       {order.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{order.date}</TableCell>
+                  <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <IconEye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => handleDeliverOrder(order._id)}
+                      >
                         <IconTruck className="h-4 w-4" />
                       </Button>
                     </div>

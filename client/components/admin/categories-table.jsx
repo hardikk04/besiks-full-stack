@@ -151,16 +151,17 @@ export function CategoriesTable() {
   const handleStatusChange = async (categoryId) => {
     try {
       await updateIsActive(categoryId).unwrap();
-      toast.success("Category status updated");
+      toast.success("Category featured status updated");
     } catch (err) {
-      toast.error(err?.data?.message || "Failed to update status");
+      toast.error(err?.data?.message || "Failed to update featured status");
     }
   };
+
 
   // Selection handlers
   const handleSelectAll = (checked) => {
     if (checked) {
-      const allCategoryIds = categories?.map((category) => category._id) || [];
+      const allCategoryIds = categories?.filter(category => category && category._id).map((category) => category._id) || [];
       setSelectedCategories(allCategoryIds);
     } else {
       setSelectedCategories([]);
@@ -355,13 +356,13 @@ export function CategoriesTable() {
               <TableHead>Description</TableHead>
               <TableHead>Parent</TableHead>
               <TableHead>Sort Order</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Status (Featured)</TableHead>
               <TableHead className="w-32">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {categories?.length > 0 ? (
-              categories?.map((category, index) => (
+              categories?.filter(category => category && category._id).map((category, index) => (
                 <TableRow key={category._id}>
                   <TableCell>
                     <Checkbox
@@ -406,7 +407,7 @@ export function CategoriesTable() {
                         onCheckedChange={() => handleStatusChange(category._id)}
                       />
                       <span className="text-sm font-medium">
-                        {category.isActive ? "Active" : "Draft"}
+                        {category.isActive ? "Featured" : "Hidden"}
                       </span>
                     </div>
                   </TableCell>

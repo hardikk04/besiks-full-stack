@@ -1,6 +1,7 @@
 const express = require("express");
 const {
   getCategories,
+  getFeaturedCategories,
   searchCategories,
   getCategoryById,
   createCategory,
@@ -17,6 +18,11 @@ const router = express.Router();
 // @desc    Get all categories
 // @access  Public
 router.get("/", getCategories);
+
+// @route   GET /api/categories/featured
+// @desc    Get featured categories
+// @access  Public
+router.get("/featured", getFeaturedCategories);
 
 // @route   GET /api/categories/search
 // @desc    Search categories by name
@@ -50,7 +56,7 @@ router.put("/:id", auth.protect, auth.admin, updateCategory);
 router.delete("/:id", auth.protect, auth.admin, deleteCategory);
 
 // @route   PUT /api/category/:id/status
-// @desc    Update category active status
+// @desc    Update category active status (this controls featured status)
 // @access  Private (Admin only)
 router.put("/:id/status", auth.protect, auth.admin, updateCategoryStatus);
 
