@@ -1,4 +1,5 @@
 const Tag = require('../models/Tag');
+const { mongooseIdValidation } = require('../validation/product/validation');
 
 // @desc    Get all tags
 // @route   GET /api/tags
@@ -26,6 +27,15 @@ const getTags = async (req, res) => {
 // @access  Public
 const getTag = async (req, res) => {
   try {
+    const parsed = mongooseIdValidation.safeParse(req.params.id);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation Error",
+        errors: parsed.error.flatten(),
+      });
+    }
+
     const tag = await Tag.findById(req.params.id);
     
     if (!tag) {
@@ -41,6 +51,12 @@ const getTag = async (req, res) => {
     });
   } catch (error) {
     console.error('Get tag error:', error);
+    if (error.kind === "ObjectId") {
+      return res.status(404).json({
+        success: false,
+        message: 'Tag not found'
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Server error while fetching tag'
@@ -94,6 +110,15 @@ const createTag = async (req, res) => {
 // @access  Private/Admin
 const updateTag = async (req, res) => {
   try {
+    const parsed = mongooseIdValidation.safeParse(req.params.id);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation Error",
+        errors: parsed.error.flatten(),
+      });
+    }
+
     const { name, description, isActive } = req.body;
 
     let tag = await Tag.findById(req.params.id);
@@ -131,6 +156,12 @@ const updateTag = async (req, res) => {
     });
   } catch (error) {
     console.error('Update tag error:', error);
+    if (error.kind === "ObjectId") {
+      return res.status(404).json({
+        success: false,
+        message: 'Tag not found'
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Server error while updating tag'
@@ -143,6 +174,15 @@ const updateTag = async (req, res) => {
 // @access  Private/Admin
 const deleteTag = async (req, res) => {
   try {
+    const parsed = mongooseIdValidation.safeParse(req.params.id);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation Error",
+        errors: parsed.error.flatten(),
+      });
+    }
+
     const tag = await Tag.findById(req.params.id);
     
     if (!tag) {
@@ -160,6 +200,12 @@ const deleteTag = async (req, res) => {
     });
   } catch (error) {
     console.error('Delete tag error:', error);
+    if (error.kind === "ObjectId") {
+      return res.status(404).json({
+        success: false,
+        message: 'Tag not found'
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Server error while deleting tag'
