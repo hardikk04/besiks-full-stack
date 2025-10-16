@@ -1,5 +1,6 @@
 const Wishlist = require('../models/Wishlist');
 const Product = require('../models/Product');
+const { mongooseIdValidation } = require('../validation/product/validation');
 
 // Get user's wishlist
 exports.getWishlist = async (req, res) => {
@@ -34,11 +35,21 @@ exports.getWishlist = async (req, res) => {
 exports.addToWishlist = async (req, res) => {
   try {
     const { productId } = req.body;
-
+    
     if (!productId) {
       return res.status(400).json({
         success: false,
         message: 'Product ID is required'
+      });
+    }
+
+    // Validate MongoDB ID format
+    const parsed = mongooseIdValidation.safeParse(productId);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation Error",
+        errors: parsed.error.flatten(),
       });
     }
 
@@ -97,6 +108,16 @@ exports.addToWishlist = async (req, res) => {
 exports.removeFromWishlist = async (req, res) => {
   try {
     const { productId } = req.params;
+
+    // Validate MongoDB ID format
+    const parsed = mongooseIdValidation.safeParse(productId);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation Error",
+        errors: parsed.error.flatten(),
+      });
+    }
 
     const wishlist = await Wishlist.findOne({ user: req.user.id });
     if (!wishlist) {
@@ -166,6 +187,16 @@ exports.checkWishlistStatus = async (req, res) => {
   try {
     const { productId } = req.params;
 
+    // Validate MongoDB ID format
+    const parsed = mongooseIdValidation.safeParse(productId);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation Error",
+        errors: parsed.error.flatten(),
+      });
+    }
+
     const wishlist = await Wishlist.findOne({ user: req.user.id });
     
     if (!wishlist) {
@@ -208,6 +239,16 @@ exports.getWishlistCount = async (req, res) => {
 exports.moveToCart = async (req, res) => {
   try {
     const { productId } = req.params;
+
+    // Validate MongoDB ID format
+    const parsed = mongooseIdValidation.safeParse(productId);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation Error",
+        errors: parsed.error.flatten(),
+      });
+    }
 
     // Check if product exists in wishlist
     const wishlist = await Wishlist.findOne({ user: req.user.id });
