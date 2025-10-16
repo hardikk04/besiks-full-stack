@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, Search, Heart, User, ChevronDown } from "lucide-react";
 import CartSheet from "@/components/shared/cart/CartSheet";
+import WishlistSheet from "@/components/shared/wishlist/WishlistSheet";
 import SearchResults from "@/components/shared/search/SearchResults";
-import { useGetWishlistCountQuery } from "@/features/wishlist/wishlistApi";
-import { useGetCartCountQuery } from "@/features/cart/cartApi";
+import { useCart } from "@/hooks/useCart";
+import { useWishlist } from "@/hooks/useWishlist";
 import { Badge } from "@/components/ui/badge";
 
 const navigation = [
@@ -68,15 +69,13 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showMegaMenu, setShowMegaMenu] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   
   // Get cart and wishlist counts
-  const { data: cartCountData } = useGetCartCountQuery();
-  const { data: wishlistCountData } = useGetWishlistCountQuery();
-  
-  const cartCount = cartCountData?.data?.count || 0;
-  const wishlistCount = wishlistCountData?.data?.count || 0;
+  const { cartCount } = useCart();
+  const { wishlistCount } = useWishlist();
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -196,23 +195,8 @@ const Navbar = () => {
               </div>
             </div>
 
-            {/* Wishlist Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-gray-600 hover:text-blue-600 relative"
-            >
-              <Heart className="h-5 w-5" />
-              {wishlistCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
-                >
-                  {wishlistCount}
-                </Badge>
-              )}
-              <span className="sr-only">Wishlist</span>
-            </Button>
+            {/* Wishlist Sheet */}
+            <WishlistSheet isOpen={isWishlistOpen} onOpenChange={setIsWishlistOpen} wishlistCount={wishlistCount} />
 
             {/* Cart Sheet */}
             <CartSheet isOpen={isCartOpen} onOpenChange={setIsCartOpen} cartCount={cartCount} />

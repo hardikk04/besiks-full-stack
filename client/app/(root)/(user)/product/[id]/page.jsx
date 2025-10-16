@@ -31,8 +31,8 @@ import ProductCard from "@/components/home/ProductCard";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useGetAllProductsQuery } from "@/features/products/productApi";
-import { useAddToCartMutation } from "@/features/cart/cartApi";
-import { useAddToWishlistMutation, useCheckWishlistStatusQuery } from "@/features/wishlist/wishlistApi";
+import { useCart } from "@/hooks/useCart";
+import { useWishlist } from "@/hooks/useWishlist";
 import { toast } from "sonner";
 
 const page = () => {
@@ -47,9 +47,8 @@ const page = () => {
 
   // API calls
   const { data: productsData, isLoading: productsLoading } = useGetAllProductsQuery();
-  const [addToCart, { isLoading: isAddingToCart }] = useAddToCartMutation();
-  const [addToWishlist, { isLoading: isAddingToWishlist }] = useAddToWishlistMutation();
-  const { data: wishlistStatus } = useCheckWishlistStatusQuery(productId);
+  const { addToCart } = useCart();
+  const { addToWishlist, isInWishlist } = useWishlist();
 
   // Find the current product
   const products = productsData?.products || [];
@@ -85,27 +84,12 @@ const page = () => {
 
   const handleAddToCart = async () => {
     if (!product) return;
-    
-    try {
-      await addToCart({
-        productId: product._id,
-        quantity: quantity,
-      }).unwrap();
-      toast.success("Product added to cart");
-    } catch (err) {
-      toast.error(err?.data?.message || "Failed to add to cart");
-    }
+    await addToCart(product, quantity);
   };
 
   const handleAddToWishlist = async () => {
     if (!product) return;
-    
-    try {
-      await addToWishlist(product._id).unwrap();
-      toast.success("Product added to wishlist");
-    } catch (err) {
-      toast.error(err?.data?.message || "Failed to add to wishlist");
-    }
+    await addToWishlist(product);
   };
 
   // Loading state
@@ -285,9 +269,9 @@ const page = () => {
               <Button 
                 className="flex-1 bg-[#174986] text-white py-3 rounded-sm"
                 onClick={handleAddToCart}
-                disabled={isAddingToCart || product.stock <= 0}
+                disabled={product.stock <= 0}
               >
-                {isAddingToCart ? "Adding..." : "Add to Cart"} <ShoppingCart className="ml-2" />
+                Add to Cart <ShoppingCart className="ml-2" />
               </Button>
             </div>
 
@@ -297,10 +281,9 @@ const page = () => {
                 variant="outline"
                 className="flex items-center bg-[#E6E6E6] justify-center gap-2 rounded-sm"
                 onClick={handleAddToWishlist}
-                disabled={isAddingToWishlist}
               >
-                <Heart className={`w-4 h-4 ${wishlistStatus?.data?.isInWishlist ? 'fill-red-500 text-red-500' : ''}`} />
-                {isAddingToWishlist ? "Adding..." : "Wishlist"}
+                <Heart className={`w-4 h-4 ${isInWishlist(product?._id) ? 'fill-red-500 text-red-500' : ''}`} />
+                Wishlist
               </Button>
               <Button
                 variant="outline"

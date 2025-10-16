@@ -2,11 +2,10 @@ import Image from "next/image";
 import React from "react";
 import { Button } from "../ui/button";
 import Link from "next/link";
-import { useAddToCartMutation } from "@/features/cart/cartApi";
-import { toast } from "sonner";
+import { useCart } from "@/hooks/useCart";
 
 const ProductCard = ({ product }) => {
-  const [addToCart, { isLoading }] = useAddToCartMutation();
+  const { addToCart } = useCart();
 
   // Add null check for product
   if (!product) {
@@ -26,16 +25,7 @@ const ProductCard = ({ product }) => {
   const handleAddToCart = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    try {
-      await addToCart({
-        productId: product._id,
-        quantity: 1,
-      }).unwrap();
-      toast.success("Product added to cart");
-    } catch (err) {
-      toast.error(err?.data?.message || "Failed to add to cart");
-    }
+    await addToCart(product, 1);
   };
 
   return (
@@ -55,9 +45,8 @@ const ProductCard = ({ product }) => {
         <Button 
           className="w-full bg-[#174986] text-sm sm:text-base"
           onClick={handleAddToCart}
-          disabled={isLoading}
         >
-          {isLoading ? "Adding..." : "Add to Cart"}
+          Add to Cart
         </Button>
       </div>
     </Link>

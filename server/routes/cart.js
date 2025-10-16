@@ -24,4 +24,7 @@ router.delete('/clear', cartController.clearCart);
 // Get cart count (for header display)
 router.get('/count', cartController.getCartCount);
 
+// Merge guest cart with user cart
+router.post('/merge-guest-cart', cartController.mergeGuestCart);
+
 module.exports = router; 

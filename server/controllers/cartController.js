@@ -271,4 +271,92 @@ exports.getCartCount = async (req, res) => {
     console.error(err.message);
     res.status(500).send('Server error');
   }
+};
+
+// Merge guest cart with user cart
+exports.mergeGuestCart = async (req, res) => {
+  try {
+    const { guestCartItems } = req.body;
+
+    if (!guestCartItems || !Array.isArray(guestCartItems)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Guest cart items are required'
+      });
+    }
+
+    let cart = await Cart.findOne({ user: req.user.id });
+
+    if (!cart) {
+      // Create new cart with guest items
+      cart = new Cart({
+        user: req.user.id,
+        items: []
+      });
+    }
+
+    // Process each guest cart item
+    for (const guestItem of guestCartItems) {
+      // Handle both product object and productId string
+      const productId = guestItem.product?._id || guestItem.product;
+      const { quantity, price, name, image } = guestItem;
+
+      if (!productId) {
+        console.log('Skipping item without product ID:', guestItem);
+        continue;
+      }
+
+      // Check if product exists and is active
+      const product = await Product.findById(productId);
+      if (!product || !product.isActive) {
+        console.log('Skipping invalid product:', productId);
+        continue; // Skip invalid products
+      }
+
+      // Check if product already exists in user's cart
+      const existingItemIndex = cart.items.findIndex(
+        item => item.product.toString() === productId
+      );
+
+      if (existingItemIndex > -1) {
+        // Update quantity (add guest quantity to existing quantity)
+        const newQuantity = cart.items[existingItemIndex].quantity + quantity;
+        if (newQuantity <= product.stock) {
+          cart.items[existingItemIndex].quantity = newQuantity;
+        } else {
+          // Set to maximum available stock
+          cart.items[existingItemIndex].quantity = product.stock;
+        }
+      } else {
+        // Add new item
+        const finalQuantity = Math.min(quantity, product.stock);
+        if (finalQuantity > 0) {
+          cart.items.push({
+            product: productId,
+            quantity: finalQuantity,
+            price: product.price,
+            name: product.name,
+            image: product.images[0]
+          });
+        }
+      }
+    }
+
+    await cart.save();
+
+    // Populate product details
+    await cart.populate({
+      path: 'items.product',
+      select: 'name price images stock isActive'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Guest cart merged successfully',
+      data: cart
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
 }; 

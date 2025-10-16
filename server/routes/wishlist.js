@@ -27,4 +27,7 @@ router.get('/count', wishlistController.getWishlistCount);
 // Move wishlist item to cart
 router.post('/move-to-cart/:productId', wishlistController.moveToCart);
 
+// Merge guest wishlist with user wishlist
+router.post('/merge-guest-wishlist', wishlistController.mergeGuestWishlist);
+
 module.exports = router; 

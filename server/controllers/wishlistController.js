@@ -291,4 +291,71 @@ exports.moveToCart = async (req, res) => {
     console.error(err.message);
     res.status(500).send('Server error');
   }
+};
+
+// Merge guest wishlist with user wishlist
+exports.mergeGuestWishlist = async (req, res) => {
+  try {
+    const { guestWishlistProducts } = req.body;
+
+    if (!guestWishlistProducts || !Array.isArray(guestWishlistProducts)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Guest wishlist products are required'
+      });
+    }
+
+    let wishlist = await Wishlist.findOne({ user: req.user.id });
+
+    if (!wishlist) {
+      // Create new wishlist
+      wishlist = new Wishlist({
+        user: req.user.id,
+        products: []
+      });
+    }
+
+    // Process each guest wishlist product
+    for (const guestProduct of guestWishlistProducts) {
+      // Handle both product object and productId string
+      const productId = guestProduct._id || guestProduct;
+
+      if (!productId) {
+        console.log('Skipping product without ID:', guestProduct);
+        continue;
+      }
+
+      // Check if product exists and is active
+      const product = await Product.findById(productId);
+      if (!product || !product.isActive) {
+        console.log('Skipping invalid product:', productId);
+        continue; // Skip invalid products
+      }
+
+      // Check if product already exists in user's wishlist
+      const productExists = wishlist.products.includes(productId);
+      
+      if (!productExists) {
+        // Add new product to wishlist
+        wishlist.products.push(productId);
+      }
+    }
+
+    await wishlist.save();
+
+    // Populate product details
+    await wishlist.populate({
+      path: 'products',
+      select: 'name price images stock isActive rating numReviews'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Guest wishlist merged successfully',
+      data: wishlist
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
 }; 
