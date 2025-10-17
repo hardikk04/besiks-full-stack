@@ -31,7 +31,7 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:3001',
-      'https://besiks-full-stack.vercel.app', // Replace with your actual frontend domain
+      'https://your-frontend-domain.com', // Replace with your actual frontend domain
       process.env.FRONTEND_URL, // Environment variable for frontend URL
     ];
     
@@ -61,9 +61,6 @@ const corsOptions = {
   exposedHeaders: ['Authorization'],
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
-
-// Handle preflight requests
-app.options('*', cors(corsOptions));
 
 // Middleware
 app.use(helmet({
@@ -97,9 +94,11 @@ app.use("/v1/api/coupons", couponRoutes);
 app.use("/v1/api/cart", cartRoutes);
 app.use("/v1/api/wishlist", wishlistRoutes);
 
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
 // Health check
 app.get("/health", (req, res) => {
-  res.cookie("test", "test");
   res.status(200).json({ status: "OK", message: "Server is running" });
 });
 
