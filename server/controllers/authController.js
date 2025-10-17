@@ -41,6 +41,7 @@ const adminLogin = async (req, res) => {
       res.cookie("token", token, {
         httpOnly: true,
         secure: true,
+        domain: ".vercel.app",
         sameSite: "none",
         path: "/",
         maxAge: 1000 * 60 * 60 * 24,
