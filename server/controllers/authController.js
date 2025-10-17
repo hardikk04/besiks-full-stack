@@ -40,9 +40,10 @@ const adminLogin = async (req, res) => {
 
       res.cookie("token", token, {
         httpOnly: true,
-        secure: true,
-        sameSite: "strict",
-        maxAge: 1000 * 60 * 60 * 24,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days to match token expiry
+        path: '/',
       });
 
       res.status(200).json({
@@ -111,6 +112,15 @@ const loginUser = async (req, res) => {
     // Generate token
     const token = generateToken(user._id);
 
+    // Set cookie for regular users
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days to match token expiry
+      path: '/',
+    });
+
     res.status(200).json({
       success: true,
       token,
@@ -160,7 +170,12 @@ const getMe = async (req, res) => {
 
 const logout = async (req, res) => {
   try {
-    res.clearCookie("token");
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+    });
     res.status(200).json({
       success: true,
       message: "User logged out successfully",
