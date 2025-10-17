@@ -26,46 +26,48 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     // List of allowed origins
     const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://your-frontend-domain.com', // Replace with your actual frontend domain
-      process.env.FRONTEND_URL, // Environment variable for frontend URL
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "https://besiks-full-stack.vercel.app",
+      process.env.FRONTEND_URL,
     ];
-    
+
     // Check if origin is allowed
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       // For development, allow all origins
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        callback(new Error("Not allowed by CORS"));
       }
     }
   },
   credentials: true, // Allow cookies and authorization headers
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: [
-    'Origin',
-    'X-Requested-With',
-    'Content-Type',
-    'Accept',
-    'Authorization',
-    'Cache-Control',
-    'Pragma'
+    "Origin",
+    "X-Requested-With",
+    "Content-Type",
+    "Accept",
+    "Authorization",
+    "Cache-Control",
+    "Pragma",
   ],
-  exposedHeaders: ['Authorization'],
-  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+  exposedHeaders: ["Authorization", "set-cookie"],
+  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
 };
 
 // Middleware
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
 app.use(compression());
 app.use(morgan("combined"));
 app.use(cors(corsOptions));
@@ -95,7 +97,7 @@ app.use("/v1/api/cart", cartRoutes);
 app.use("/v1/api/wishlist", wishlistRoutes);
 
 // Handle preflight requests
-app.options('*', cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 // Health check
 app.get("/health", (req, res) => {

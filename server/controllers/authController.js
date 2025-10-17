@@ -42,6 +42,7 @@ const adminLogin = async (req, res) => {
         httpOnly: true,
         secure: true,
         sameSite: "none",
+        path: "/",
         maxAge: 1000 * 60 * 60 * 24,
       });
 
@@ -137,7 +138,7 @@ const loginUser = async (req, res) => {
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-__v");
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
