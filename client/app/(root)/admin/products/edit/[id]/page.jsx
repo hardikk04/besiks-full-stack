@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Plus, X, Upload, ImageIcon, ArrowLeft } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useSearchParams, useRouter, useParams } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 const EditProductPage = () => {
   const router = useRouter();

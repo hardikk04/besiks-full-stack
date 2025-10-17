@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { FreeMode } from "swiper/modules";
 import "swiper/css";
@@ -12,7 +12,8 @@ import { useSearchParams } from "next/navigation";
 import { useGetAllProductsQuery, useSearchProductQuery } from "@/features/products/productApi";
 import { useGetAllCategoriesQuery, useGetFeaturedCategoriesQuery } from "@/features/category/categoryApi";
 
-const page = () => {
+// Component that uses useSearchParams - needs to be wrapped in Suspense
+const ShopContent = () => {
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
   
@@ -155,6 +156,22 @@ const page = () => {
         )}
       </section>
     </>
+  );
+};
+
+// Loading fallback component
+const ShopLoading = () => (
+  <div className="container mx-auto px-4 sm:px-6 lg:px-16 py-8">
+    <div className="text-center text-muted-foreground">Loading products...</div>
+  </div>
+);
+
+// Main page component with Suspense boundary
+const page = () => {
+  return (
+    <Suspense fallback={<ShopLoading />}>
+      <ShopContent />
+    </Suspense>
   );
 };
 
