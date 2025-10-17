@@ -31,7 +31,7 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:3001',
-      'https://your-frontend-domain.com', // Replace with your actual frontend domain
+      'https://besiks-full-stack.vercel.app', // Replace with your actual frontend domain
       process.env.FRONTEND_URL, // Environment variable for frontend URL
     ];
     
@@ -99,6 +99,7 @@ app.options('*', cors(corsOptions));
 
 // Health check
 app.get("/health", (req, res) => {
+  res.cookie("test", "test");
   res.status(200).json({ status: "OK", message: "Server is running" });
 });
 
