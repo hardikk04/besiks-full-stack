@@ -38,13 +38,24 @@ const adminLogin = async (req, res) => {
     if (admin.role === "admin") {
       const token = generateToken(admin._id, "admin");
 
-      res.cookie("token", token, {
+      // Cookie configuration for different environments
+      const cookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days to match token expiry
         path: '/',
-      });
+      };
+
+      // For production (Render), use secure settings
+      if (process.env.NODE_ENV === 'production') {
+        cookieOptions.secure = true;
+        cookieOptions.sameSite = 'none';
+      } else {
+        // For development
+        cookieOptions.secure = false;
+        cookieOptions.sameSite = 'lax';
+      }
+
+      res.cookie("token", token, cookieOptions);
 
       res.status(200).json({
         success: true,
@@ -113,13 +124,23 @@ const loginUser = async (req, res) => {
     const token = generateToken(user._id);
 
     // Set cookie for regular users
-    res.cookie("token", token, {
+    const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days to match token expiry
       path: '/',
-    });
+    };
+
+    // For production (Render), use secure settings
+    if (process.env.NODE_ENV === 'production') {
+      cookieOptions.secure = true;
+      cookieOptions.sameSite = 'none';
+    } else {
+      // For development
+      cookieOptions.secure = false;
+      cookieOptions.sameSite = 'lax';
+    }
+
+    res.cookie("token", token, cookieOptions);
 
     res.status(200).json({
       success: true,
@@ -170,12 +191,23 @@ const getMe = async (req, res) => {
 
 const logout = async (req, res) => {
   try {
-    res.clearCookie("token", {
+    // Cookie configuration for clearing cookies
+    const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       path: '/',
-    });
+    };
+
+    // For production (Render), use secure settings
+    if (process.env.NODE_ENV === 'production') {
+      cookieOptions.secure = true;
+      cookieOptions.sameSite = 'none';
+    } else {
+      // For development
+      cookieOptions.secure = false;
+      cookieOptions.sameSite = 'lax';
+    }
+
+    res.clearCookie("token", cookieOptions);
     res.status(200).json({
       success: true,
       message: "User logged out successfully",
