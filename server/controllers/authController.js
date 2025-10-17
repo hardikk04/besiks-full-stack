@@ -38,14 +38,23 @@ const adminLogin = async (req, res) => {
     if (admin.role === "admin") {
       const token = generateToken(admin._id, "admin");
 
+      console.log("🔍 Setting cookie for admin login...");
+      console.log("🔍 Environment:", process.env.NODE_ENV);
+      console.log("🔍 Token length:", token.length);
+
       // Set cookie with proper configuration for cross-origin requests
-      res.cookie("token", token, {
+      const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days to match token expiry
         path: '/',
-      });
+      };
+
+      console.log("🔍 Cookie options:", cookieOptions);
+      res.cookie("token", token, cookieOptions);
+
+      console.log("✅ Cookie set successfully");
 
       res.status(200).json({
         success: true,

@@ -38,20 +38,36 @@ export function AdminLoginForm({ className, ...props }) {
     e.preventDefault();
 
     try {
+      console.log("🔍 Attempting admin login...");
+      console.log("🔍 API Base URL:", process.env.NEXT_PUBLIC_BASE_URL);
+      
       const result = await adminLogin({
         email: formData.email,
         password: formData.password,
       }).unwrap();
 
+      console.log("✅ Login response:", result);
       const { token, admin } = result;
 
       dispatch(setCredentials({ user: admin, token }));
+
+      // Check if cookie was set
+      setTimeout(() => {
+        const cookies = document.cookie;
+        console.log("🍪 Current cookies:", cookies);
+        if (cookies.includes('token=')) {
+          console.log("✅ Token cookie found!");
+        } else {
+          console.log("❌ Token cookie not found!");
+        }
+      }, 1000);
 
       toast.success("✅ Admin Login Successful");
 
       router.push("/admin/dashboard");
     } catch (err) {
       console.error("❌ Admin login failed:", err);
+      console.error("❌ Error details:", err);
       toast.error(err?.data?.message || "❌ Failed to Admin Login");
     }
   };

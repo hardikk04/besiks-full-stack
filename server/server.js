@@ -62,6 +62,9 @@ const corsOptions = {
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
 // Middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -93,9 +96,6 @@ app.use("/v1/api/tags", tagRoutes);
 app.use("/v1/api/coupons", couponRoutes);
 app.use("/v1/api/cart", cartRoutes);
 app.use("/v1/api/wishlist", wishlistRoutes);
-
-// Handle preflight requests
-app.options('*', cors(corsOptions));
 
 // Health check
 app.get("/health", (req, res) => {

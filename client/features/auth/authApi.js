@@ -17,7 +17,10 @@ export const authApi = createApi({
     logout: builder.query({
       query: () => "/admin/logout", // 👈 GET method
     }),
+    testCookie: builder.query({
+      query: () => "/test-cookie",
+    }),
   }),
 });
 
-export const { useAdminLoginMutation, useLazyLogoutQuery } = authApi;
+export const { useAdminLoginMutation, useLazyLogoutQuery, useTestCookieQuery } = authApi;
