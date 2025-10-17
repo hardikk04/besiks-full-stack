@@ -38,13 +38,7 @@ const adminLogin = async (req, res) => {
     if (admin.role === "admin") {
       const token = generateToken(admin._id, "admin");
 
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-        maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days to match token expiry
-        path: '/',
-      });
+      res.cookie("token", token);
 
       res.status(200).json({
         success: true,
