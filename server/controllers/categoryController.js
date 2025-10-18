@@ -1,4 +1,5 @@
 const Category = require("../models/Category");
+const Product = require("../models/Product");
 const { mongooseIdValidation } = require("../validation/product/validation");
 const {
   createCategoryValidation,
@@ -250,12 +251,88 @@ const updateCategoryStatus = async (req, res) => {
   }
 };
 
+// @desc    Get products by category ID
+// @route   GET /api/categories/:id/products
+// @access  Public
+const getProductsByCategory = async (req, res) => {
+  try {
+    const parsed = mongooseIdValidation.safeParse(req.params.id);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation Error",
+        errors: parsed.error.flatten(),
+      });
+    }
+
+    // Check if category exists
+    const category = await Category.findById(parsed.data);
+    if (!category) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Category not found" });
+    }
+
+    // Get query parameters for filtering and sorting
+    const { 
+      sort = 'createdAt', 
+      order = 'desc',
+      minPrice,
+      maxPrice,
+      isActive = true 
+    } = req.query;
+
+    // Build query object
+    let query = { 
+      categories: parsed.data,
+      isActive: isActive === 'true' || isActive === true
+    };
+
+    // Add price range filter if provided
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = parseFloat(minPrice);
+      if (maxPrice) query.price.$lte = parseFloat(maxPrice);
+    }
+
+    // Build sort object
+    const sortOrder = order === 'desc' ? -1 : 1;
+    const sortObj = { [sort]: sortOrder };
+
+    // Execute query to get ALL products in the category
+    const products = await Product.find(query)
+      .populate('categories', 'name')
+      .populate('tags', 'name')
+      .sort(sortObj)
+      .select('-reviews'); // Exclude reviews for better performance
+
+    res.json({
+      success: true,
+      products,
+      totalProducts: products.length,
+      category: {
+        _id: category._id,
+        name: category.name,
+        description: category.description
+      }
+    });
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === "ObjectId") {
+      return res
+        .status(404)
+        .json({ success: false, message: "Category not found" });
+    }
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
 
 module.exports = {
   getCategories,
   getFeaturedCategories,
   searchCategories,
   getCategoryById,
+  getProductsByCategory,
   createCategory,
   updateCategory,
   deleteCategory,

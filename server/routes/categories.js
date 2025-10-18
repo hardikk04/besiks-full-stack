@@ -4,6 +4,7 @@ const {
   getFeaturedCategories,
   searchCategories,
   getCategoryById,
+  getProductsByCategory,
   createCategory,
   updateCategory,
   deleteCategory,
@@ -28,6 +29,11 @@ router.get("/featured", getFeaturedCategories);
 // @desc    Search categories by name
 // @access  Private (Admin only)
 router.get("/search", searchCategories);
+
+// @route   GET /api/categories/:id/products
+// @desc    Get products by category ID
+// @access  Public
+router.get("/:id/products", getProductsByCategory);
 
 // @route   GET /api/categories/:id
 // @desc    Get category by ID
