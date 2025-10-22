@@ -7,6 +7,7 @@ const {
   createProductValidation,
   mongooseIdValidation,
 } = require("../validation/product/validation");
+const { success } = require("zod");
 
 // @desc    Get all products
 // @route   GET /api/products
@@ -72,7 +73,7 @@ const getProducts = async (req, res) => {
 
     const count = await Product.countDocuments(query);
 
-    res.json({
+    res.status(201).json({
       success: true,
       products,
       totalPages: Math.ceil(count / limit),
@@ -109,7 +110,9 @@ const getProductById = async (req, res) => {
         .json({ success: false, message: "Product not found" });
     }
 
-    res.json({ sucess: true, message: "Product found successfully", product });
+    res
+      .status(201)
+      .json({ sucess: true, message: "Product found successfully", product });
   } catch (err) {
     console.error(err.message);
     if (err.kind === "ObjectId") {
@@ -159,7 +162,7 @@ const createProduct = async (req, res) => {
 
     const newProduct = new Product({ ...parsed.data, tags: tagIds });
     const product = await newProduct.save();
-    res.json({
+    res.status(201).json({
       success: true,
       message: `Product created`,
       product,
@@ -201,7 +204,7 @@ const updateProduct = async (req, res) => {
       { new: true }
     );
 
-    res.json(product);
+    res.status(201).json({ success: true, data: product });
   } catch (err) {
     console.error(err.message);
     if (err.kind === "ObjectId") {
@@ -231,7 +234,9 @@ const deleteProduct = async (req, res) => {
         .json({ success: false, message: "Product not found" });
     }
 
-    res.json({ success: false, message: "Product removed successfully" });
+    res
+      .status(201)
+      .json({ success: false, message: "Product removed successfully" });
   } catch (err) {
     console.error(err.message);
 
@@ -272,7 +277,7 @@ const updateProductStatus = async (req, res) => {
     product.isActive = !product.isActive;
     await product.save();
 
-    res.json({
+    res.status(201).json({
       success: true,
       message: `Product ${
         product.isActive ? "activated" : "deactivated"
@@ -365,7 +370,7 @@ const searchProducts = async (req, res) => {
     const totalProducts = await Product.countDocuments(filter);
     const totalPages = Math.ceil(totalProducts / limitNum);
 
-    res.json({
+    res.status(201).json({
       success: true,
       message: `Found ${totalProducts} product(s) matching your search`,
       data: {
@@ -405,7 +410,7 @@ const getNewProducts = async (req, res) => {
       .limit(limit)
       .exec();
 
-    res.json({ success: true, products });
+    res.status(201).json({ success: true, products });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ success: false, message: "Server error" });
@@ -451,7 +456,11 @@ const getRecentPurchases = async (req, res) => {
         .lean();
       // Sort according to order of productIds (recent first)
       const orderMap = new Map(productIds.map((id, idx) => [id, idx]));
-      products.sort((a, b) => (orderMap.get(a._id.toString()) ?? 0) - (orderMap.get(b._id.toString()) ?? 0));
+      products.sort(
+        (a, b) =>
+          (orderMap.get(a._id.toString()) ?? 0) -
+          (orderMap.get(b._id.toString()) ?? 0)
+      );
       products = products.slice(0, limit);
     } else {
       // Fallback: normal products (e.g., newest)
@@ -462,7 +471,7 @@ const getRecentPurchases = async (req, res) => {
         .lean();
     }
 
-    return res.json({ success: true, products });
+    return res.status(201).json({ success: true, products });
   } catch (err) {
     console.error(err.message);
     return res.status(500).json({ success: false, message: "Server error" });

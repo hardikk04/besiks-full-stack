@@ -1,33 +1,32 @@
-const Wishlist = require('../models/Wishlist');
-const Product = require('../models/Product');
-const { mongooseIdValidation } = require('../validation/product/validation');
+const Wishlist = require("../models/Wishlist");
+const Product = require("../models/Product");
+const { mongooseIdValidation } = require("../validation/product/validation");
 
 // Get user's wishlist
 exports.getWishlist = async (req, res) => {
   try {
-    const wishlist = await Wishlist.findOne({ user: req.user.id })
-      .populate({
-        path: 'products',
-        select: 'name price images stock isActive rating numReviews'
-      });
+    const wishlist = await Wishlist.findOne({ user: req.user.id }).populate({
+      path: "products",
+      select: "name price images stock isActive rating numReviews",
+    });
 
     if (!wishlist) {
       return res.status(200).json({
         success: true,
         data: {
           products: [],
-          totalItems: 0
-        }
+          totalItems: 0,
+        },
       });
     }
 
     res.status(200).json({
       success: true,
-      data: wishlist
+      data: wishlist,
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -35,11 +34,11 @@ exports.getWishlist = async (req, res) => {
 exports.addToWishlist = async (req, res) => {
   try {
     const { productId } = req.body;
-    
+
     if (!productId) {
       return res.status(400).json({
         success: false,
-        message: 'Product ID is required'
+        message: "Product ID is required",
       });
     }
 
@@ -58,7 +57,7 @@ exports.addToWishlist = async (req, res) => {
     if (!product || !product.isActive) {
       return res.status(404).json({
         success: false,
-        message: 'Product not found or inactive'
+        message: "Product not found or inactive",
       });
     }
 
@@ -68,16 +67,16 @@ exports.addToWishlist = async (req, res) => {
       // Create new wishlist
       wishlist = new Wishlist({
         user: req.user.id,
-        products: [productId]
+        products: [productId],
       });
     } else {
       // Check if product already exists in wishlist
       const productExists = wishlist.products.includes(productId);
-      
+
       if (productExists) {
         return res.status(400).json({
           success: false,
-          message: 'Product already exists in wishlist'
+          message: "Product already exists in wishlist",
         });
       }
 
@@ -89,18 +88,18 @@ exports.addToWishlist = async (req, res) => {
 
     // Populate product details
     await wishlist.populate({
-      path: 'products',
-      select: 'name price images stock isActive rating numReviews'
+      path: "products",
+      select: "name price images stock isActive rating numReviews",
     });
 
     res.status(200).json({
       success: true,
-      message: 'Product added to wishlist successfully',
-      data: wishlist
+      message: "Product added to wishlist successfully",
+      data: wishlist,
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -123,7 +122,7 @@ exports.removeFromWishlist = async (req, res) => {
     if (!wishlist) {
       return res.status(404).json({
         success: false,
-        message: 'Wishlist not found'
+        message: "Wishlist not found",
       });
     }
 
@@ -132,7 +131,7 @@ exports.removeFromWishlist = async (req, res) => {
     if (productIndex === -1) {
       return res.status(404).json({
         success: false,
-        message: 'Product not found in wishlist'
+        message: "Product not found in wishlist",
       });
     }
 
@@ -142,18 +141,18 @@ exports.removeFromWishlist = async (req, res) => {
 
     // Populate product details
     await wishlist.populate({
-      path: 'products',
-      select: 'name price images stock isActive rating numReviews'
+      path: "products",
+      select: "name price images stock isActive rating numReviews",
     });
 
     res.status(200).json({
       success: true,
-      message: 'Product removed from wishlist successfully',
-      data: wishlist
+      message: "Product removed from wishlist successfully",
+      data: wishlist,
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -164,7 +163,7 @@ exports.clearWishlist = async (req, res) => {
     if (!wishlist) {
       return res.status(404).json({
         success: false,
-        message: 'Wishlist not found'
+        message: "Wishlist not found",
       });
     }
 
@@ -173,12 +172,12 @@ exports.clearWishlist = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Wishlist cleared successfully',
-      data: wishlist
+      message: "Wishlist cleared successfully",
+      data: wishlist,
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -198,11 +197,11 @@ exports.checkWishlistStatus = async (req, res) => {
     }
 
     const wishlist = await Wishlist.findOne({ user: req.user.id });
-    
+
     if (!wishlist) {
       return res.status(200).json({
         success: true,
-        data: { isInWishlist: false }
+        data: { isInWishlist: false },
       });
     }
 
@@ -210,11 +209,11 @@ exports.checkWishlistStatus = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: { isInWishlist }
+      data: { isInWishlist },
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -222,16 +221,16 @@ exports.checkWishlistStatus = async (req, res) => {
 exports.getWishlistCount = async (req, res) => {
   try {
     const wishlist = await Wishlist.findOne({ user: req.user.id });
-    
+
     const count = wishlist ? wishlist.totalItems : 0;
 
     res.status(200).json({
       success: true,
-      data: { count }
+      data: { count },
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).send("Server error");
   }
 };
 
@@ -255,7 +254,7 @@ exports.moveToCart = async (req, res) => {
     if (!wishlist || !wishlist.products.includes(productId)) {
       return res.status(404).json({
         success: false,
-        message: 'Product not found in wishlist'
+        message: "Product not found in wishlist",
       });
     }
 
@@ -264,7 +263,7 @@ exports.moveToCart = async (req, res) => {
     if (!product || !product.isActive) {
       return res.status(404).json({
         success: false,
-        message: 'Product not found or inactive'
+        message: "Product not found or inactive",
       });
     }
 
@@ -272,24 +271,25 @@ exports.moveToCart = async (req, res) => {
     if (product.stock < 1) {
       return res.status(400).json({
         success: false,
-        message: 'Product is out of stock'
+        message: "Product is out of stock",
       });
     }
 
     // Remove from wishlist
     wishlist.products = wishlist.products.filter(
-      id => id.toString() !== productId
+      (id) => id.toString() !== productId
     );
     await wishlist.save();
 
     res.status(200).json({
       success: true,
-      message: 'Product moved to cart successfully. Please add it to your cart.',
-      data: { productId }
+      message:
+        "Product moved to cart successfully. Please add it to your cart.",
+      data: { productId },
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -301,7 +301,7 @@ exports.mergeGuestWishlist = async (req, res) => {
     if (!guestWishlistProducts || !Array.isArray(guestWishlistProducts)) {
       return res.status(400).json({
         success: false,
-        message: 'Guest wishlist products are required'
+        message: "Guest wishlist products are required",
       });
     }
 
@@ -311,7 +311,7 @@ exports.mergeGuestWishlist = async (req, res) => {
       // Create new wishlist
       wishlist = new Wishlist({
         user: req.user.id,
-        products: []
+        products: [],
       });
     }
 
@@ -321,20 +321,20 @@ exports.mergeGuestWishlist = async (req, res) => {
       const productId = guestProduct._id || guestProduct;
 
       if (!productId) {
-        console.log('Skipping product without ID:', guestProduct);
+        console.log("Skipping product without ID:", guestProduct);
         continue;
       }
 
       // Check if product exists and is active
       const product = await Product.findById(productId);
       if (!product || !product.isActive) {
-        console.log('Skipping invalid product:', productId);
+        console.log("Skipping invalid product:", productId);
         continue; // Skip invalid products
       }
 
       // Check if product already exists in user's wishlist
       const productExists = wishlist.products.includes(productId);
-      
+
       if (!productExists) {
         // Add new product to wishlist
         wishlist.products.push(productId);
@@ -345,17 +345,17 @@ exports.mergeGuestWishlist = async (req, res) => {
 
     // Populate product details
     await wishlist.populate({
-      path: 'products',
-      select: 'name price images stock isActive rating numReviews'
+      path: "products",
+      select: "name price images stock isActive rating numReviews",
     });
 
     res.status(200).json({
       success: true,
-      message: 'Guest wishlist merged successfully',
-      data: wishlist
+      message: "Guest wishlist merged successfully",
+      data: wishlist,
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: "Server error" });
   }
-}; 
+};

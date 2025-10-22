@@ -1,5 +1,6 @@
 const { validationResult } = require("express-validator");
 const User = require("../models/User");
+const { success } = require("zod");
 
 // @desc    Get user profile
 // @route   GET /api/users/profile
@@ -7,10 +8,10 @@ const User = require("../models/User");
 const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
-    res.json(user);
+    res.status(200).json({ success: true, data: user });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server error");
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -20,7 +21,7 @@ const getUserProfile = async (req, res) => {
 const updateUserProfile = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return res.status(400).json({ success: false, errors: errors.array() });
   }
 
   try {
@@ -32,7 +33,9 @@ const updateUserProfile = async (req, res) => {
       _id: { $ne: req.user.id },
     });
     if (existingUser) {
-      return res.status(400).json({ message: "Email already exists" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email already exists" });
     }
 
     const user = await User.findByIdAndUpdate(
@@ -41,10 +44,10 @@ const updateUserProfile = async (req, res) => {
       { new: true }
     ).select("-password");
 
-    res.json(user);
+    res.status(200).json({ success: true, data: user });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server error");
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -54,7 +57,7 @@ const updateUserProfile = async (req, res) => {
 const updateUserPassword = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return res.status(400).json({ success: false, errors: errors.array() });
   }
 
   try {
@@ -64,26 +67,30 @@ const updateUserPassword = async (req, res) => {
     const isMatch = await user.comparePassword(currentPassword);
 
     if (!isMatch) {
-      return res.status(400).json({ message: "Current password is incorrect" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Current password is incorrect" });
     }
 
     user.password = newPassword;
     await user.save();
 
-    res.json({ message: "Password updated successfully" });
+    res
+      .status(200)
+      .json({ success: false, message: "Password updated successfully" });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server error");
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.find();
-    res.status(200).json(users);
+    res.status(200).json({ success: true, data: users });
   } catch (error) {
     console.error(err.message);
-    res.status(500).send("Server error");
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 

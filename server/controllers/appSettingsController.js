@@ -5,10 +5,12 @@ exports.getSettings = async (req, res) => {
   try {
     const settings = await AppSettings.findOne();
     if (!settings)
-      return res.status(404).json({ message: "Settings not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Settings not found" });
     res.json({ success: true, data: settings });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -17,7 +19,9 @@ exports.createSettings = async (req, res) => {
   try {
     let settings = await AppSettings.findOne();
     if (settings)
-      return res.status(400).json({ message: "Settings already exist" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Settings already exist" });
 
     settings = new AppSettings(req.body);
     await settings.save();
@@ -51,7 +55,7 @@ exports.updateLogo = async (req, res) => {
     await settings.save();
     res.json({ success: true, data: settings });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -62,14 +66,14 @@ exports.updateHeroBanners = async (req, res) => {
     if (req.body.heroBanners.length > 5) {
       return res
         .status(400)
-        .json({ message: "Maximum 5 hero banners allowed" });
+        .json({ success: false, message: "Maximum 5 hero banners allowed" });
     }
 
     settings.heroBanners = req.body.heroBanners;
     await settings.save();
     res.json({ success: true, data: settings });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -81,7 +85,7 @@ exports.updateWeeklyHighlights = async (req, res) => {
     await settings.save();
     res.json({ success: true, data: settings });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -93,7 +97,7 @@ exports.updatePromoBanner = async (req, res) => {
     await settings.save();
     res.json({ success: true, data: settings });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -105,6 +109,6 @@ exports.updateCTA = async (req, res) => {
     await settings.save();
     res.json({ success: true, data: settings });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
