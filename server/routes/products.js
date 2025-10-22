@@ -9,6 +9,8 @@ const {
   updateProductStatus,
   searchProducts,
   updateBulkProductStatus,
+  getNewProducts,
+  getRecentPurchases,
 } = require("../controllers/productController");
 const auth = require("../middleware/auth");
 
@@ -23,6 +25,16 @@ router.get("/", getProducts);
 // @desc    Search products by SKU, name, or category
 // @access  Public
 router.get("/search", searchProducts);
+
+// @route   GET /api/products/new
+// @desc    Get newest products
+// @access  Public
+router.get("/new", getNewProducts);
+
+// @route   GET /api/products/recent-purchases
+// @desc    Get recent purchases for current user; fallback to newest
+// @access  Private (requires auth cookie)
+router.get("/recent-purchases", auth.protect, getRecentPurchases);
 
 // @route   GET /api/products/:id
 // @desc    Get product by ID

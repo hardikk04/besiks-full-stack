@@ -1,6 +1,7 @@
 const Product = require("../models/Product");
 const Tag = require("../models/Tag");
 const Category = require("../models/Category");
+const Order = require("../models/Order");
 const {
   getAllProductValidation,
   createProductValidation,
@@ -392,6 +393,82 @@ const searchProducts = async (req, res) => {
   }
 };
 
+// @desc    Get newest products
+// @route   GET /api/products/new
+// @access  Public
+const getNewProducts = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const products = await Product.find({})
+      .populate("categories", "name")
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .exec();
+
+    res.json({ success: true, products });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// @desc    Get recent purchases for the authenticated user, fallback to products
+// @route   GET /api/products/recent-purchases
+// @access  Private (requires auth cookie)
+const getRecentPurchases = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+
+    // Find recent orders for this user
+    const recentOrders = await Order.find({ user: req.user?._id })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select("orderItems")
+      .lean();
+
+    let productIds = [];
+    if (recentOrders && recentOrders.length > 0) {
+      for (const order of recentOrders) {
+        for (const item of order.orderItems || []) {
+          if (item.product) {
+            productIds.push(item.product.toString());
+          }
+        }
+      }
+      // Deduplicate while preserving order
+      const seen = new Set();
+      productIds = productIds.filter((id) => {
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+    }
+
+    let products;
+    if (productIds.length > 0) {
+      products = await Product.find({ _id: { $in: productIds } })
+        .populate("categories", "name")
+        .lean();
+      // Sort according to order of productIds (recent first)
+      const orderMap = new Map(productIds.map((id, idx) => [id, idx]));
+      products.sort((a, b) => (orderMap.get(a._id.toString()) ?? 0) - (orderMap.get(b._id.toString()) ?? 0));
+      products = products.slice(0, limit);
+    } else {
+      // Fallback: normal products (e.g., newest)
+      products = await Product.find({})
+        .populate("categories", "name")
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean();
+    }
+
+    return res.json({ success: true, products });
+  } catch (err) {
+    console.error(err.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 module.exports = {
   getProducts,
   getProductById,
@@ -400,4 +477,6 @@ module.exports = {
   deleteProduct,
   updateProductStatus,
   searchProducts,
+  getNewProducts,
+  getRecentPurchases,
 };

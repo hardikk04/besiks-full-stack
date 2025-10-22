@@ -9,12 +9,14 @@ import { FreeMode } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/free-mode";
 import Categories from "@/components/home/Categories";
-import { useGetAllProductsQuery } from "@/features/products/productApi";
+import { useGetAllProductsQuery, useGetNewProductsQuery } from "@/features/products/productApi";
 import { Button } from "@/components/ui/button";
 
 const page = () => {
   const { data: productsData, isLoading, isError } = useGetAllProductsQuery();
   const products = (productsData?.products || []).filter(product => product && product._id);
+  const { data: newestData, isLoading: isLoadingNew, isError: isErrorNew } = useGetNewProductsQuery(10);
+  const newestProducts = (newestData?.products || []).filter(product => product && product._id);
 
   return (
     <>
@@ -139,12 +141,12 @@ const page = () => {
           <h2 className="text-3xl font-medium">New for you</h2>
         </div>
 
-        {/* New for you Swiper */}
-        {isLoading ? (
+        {/* New for you Swiper (newest first) */}
+        {isLoadingNew ? (
           <div className="text-center text-muted-foreground py-8">
             Loading products...
           </div>
-        ) : isError ? (
+        ) : isErrorNew ? (
           <div className="text-center text-red-500 py-8">
             Error loading products
           </div>
@@ -178,7 +180,7 @@ const page = () => {
               },
             }}
           >
-            {products.slice(6, 10).map((product) => (
+            {newestProducts.map((product) => (
               <SwiperSlide key={product._id} className="border p-2 rounded-lg">
                 <ProductCard product={product} />
               </SwiperSlide>
