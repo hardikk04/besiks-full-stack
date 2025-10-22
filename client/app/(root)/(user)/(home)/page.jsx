@@ -9,11 +9,11 @@ import { FreeMode } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/free-mode";
 import Categories from "@/components/home/Categories";
-import { useGetAllProductsQuery, useGetNewProductsQuery } from "@/features/products/productApi";
+import {  useGetNewProductsQuery, useGetRecentPurchasesQuery } from "@/features/products/productApi";
 import { Button } from "@/components/ui/button";
 
 const page = () => {
-  const { data: productsData, isLoading, isError } = useGetAllProductsQuery();
+  const { data: productsData, isLoading, isError } = useGetRecentPurchasesQuery();
   const products = (productsData?.products || []).filter(product => product && product._id);
   const { data: newestData, isLoading: isLoadingNew, isError: isErrorNew } = useGetNewProductsQuery(10);
   const newestProducts = (newestData?.products || []).filter(product => product && product._id);
