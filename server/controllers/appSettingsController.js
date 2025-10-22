@@ -27,13 +27,26 @@ exports.createSettings = async (req, res) => {
   }
 };
 
+// helper to get or create settings doc
+async function getOrCreateSettings(initial = {}) {
+  let settings = await AppSettings.findOne();
+  if (!settings) {
+    settings = new AppSettings({
+      logo: initial.logo || "",
+      heroBanners: initial.heroBanners || [],
+      weeklyHighlights: initial.weeklyHighlights || [],
+      promoBanner: initial.promoBanner || { image: "", text: "", link: "" },
+      cta: initial.cta || { text: "", link: "" },
+    });
+    await settings.save();
+  }
+  return settings;
+}
+
 // Update Logo
 exports.updateLogo = async (req, res) => {
   try {
-    const settings = await AppSettings.findOne();
-    if (!settings)
-      return res.status(404).json({ message: "Settings not found" });
-
+    const settings = await getOrCreateSettings({ logo: req.body.logo || "" });
     settings.logo = req.body.logo;
     await settings.save();
     res.json({ success: true, data: settings });
@@ -45,10 +58,7 @@ exports.updateLogo = async (req, res) => {
 // Update Hero Banners
 exports.updateHeroBanners = async (req, res) => {
   try {
-    const settings = await AppSettings.findOne();
-    if (!settings)
-      return res.status(404).json({ message: "Settings not found" });
-
+    const settings = await getOrCreateSettings();
     if (req.body.heroBanners.length > 5) {
       return res
         .status(400)
@@ -66,10 +76,7 @@ exports.updateHeroBanners = async (req, res) => {
 // Update Weekly Highlights
 exports.updateWeeklyHighlights = async (req, res) => {
   try {
-    const settings = await AppSettings.findOne();
-    if (!settings)
-      return res.status(404).json({ message: "Settings not found" });
-
+    const settings = await getOrCreateSettings();
     settings.weeklyHighlights = req.body.weeklyHighlights;
     await settings.save();
     res.json({ success: true, data: settings });
@@ -81,10 +88,7 @@ exports.updateWeeklyHighlights = async (req, res) => {
 // Update Promo Banner
 exports.updatePromoBanner = async (req, res) => {
   try {
-    const settings = await AppSettings.findOne();
-    if (!settings)
-      return res.status(404).json({ message: "Settings not found" });
-
+    const settings = await getOrCreateSettings();
     settings.promoBanner = req.body.promoBanner;
     await settings.save();
     res.json({ success: true, data: settings });
@@ -96,10 +100,7 @@ exports.updatePromoBanner = async (req, res) => {
 // Update CTA
 exports.updateCTA = async (req, res) => {
   try {
-    const settings = await AppSettings.findOne();
-    if (!settings)
-      return res.status(404).json({ message: "Settings not found" });
-
+    const settings = await getOrCreateSettings();
     settings.cta = req.body.cta;
     await settings.save();
     res.json({ success: true, data: settings });

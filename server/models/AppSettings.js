@@ -4,7 +4,7 @@ const AppSettingsSchema = new mongoose.Schema(
   {
     logo: {
       type: String,
-      required: true,
+      required: false,
     },
     heroBanners: [
       {

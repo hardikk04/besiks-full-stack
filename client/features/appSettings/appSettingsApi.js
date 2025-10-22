@@ -3,7 +3,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 export const appSettingsApi = createApi({
   reducerPath: "appSettingsApi",
   baseQuery: fetchBaseQuery({
-    baseUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/app-settings`,
+    baseUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/settings`,
     credentials: "include",
   }),
   tagTypes: ["AppSettings"],

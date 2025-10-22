@@ -2,7 +2,7 @@ import { toast } from "sonner";
 
 export const uploadToCloudinary = async (image) => {
   try {
-    toast.loading("Uploading image...");
+    const loadingId = toast.loading("Uploading image...");
     const imageData = new FormData();
     imageData.append("file", image.file);
     imageData.append(
@@ -33,5 +33,10 @@ export const uploadToCloudinary = async (image) => {
     // Update toast to error
     toast.error("Failed to upload image. Please try again.");
     return null;
+  } finally {
+    // Ensure any loading toast is dismissed
+    try {
+      toast.dismiss();
+    } catch (_) {}
   }
 };

@@ -100,24 +100,6 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK", message: "Server is running" });
 });
 
-// Test cookie endpoint
-app.get("/test-cookie", (req, res) => {
-  res.cookie("test-cookie", "test-value", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    path: "/",
-    maxAge: 1000 * 60 * 60 * 24, // 1 day
-  });
-  
-  res.status(200).json({ 
-    status: "OK", 
-    message: "Test cookie set",
-    cookies: req.cookies,
-    headers: req.headers
-  });
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

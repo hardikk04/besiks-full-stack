@@ -71,6 +71,11 @@ const adminData = {
       url: "/admin/discount",
       icon: IconTags,
     },
+    {
+      title: "App Settings",
+      url: "/admin/app-settings",
+      icon: IconSettings,
+    },
   ],
 
   quickActions: [
