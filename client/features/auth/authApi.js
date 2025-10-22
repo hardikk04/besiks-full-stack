@@ -9,13 +9,13 @@ export const authApi = createApi({
   endpoints: (builder) => ({
     adminLogin: builder.mutation({
       query: (adminLoginInput) => ({
-        url: "/admin/login",
+        url: "auth/admin/login",
         method: "POST",
         body: adminLoginInput,
       }),
     }),
     logout: builder.query({
-      query: () => "/admin/logout", // 👈 GET method
+      query: () => "auth/admin/logout", // 👈 GET method
     }),
   }),
 });

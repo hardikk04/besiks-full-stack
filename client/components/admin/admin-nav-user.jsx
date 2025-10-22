@@ -38,7 +38,7 @@ export function AdminNavUser({ user }) {
       dispatch(logout());
       toast.success("Logout successful");
 
-      router.push("/admin/login");
+      router.push("/auth/admin/login");
     } catch (err) {
       console.error("Logout failed:", err);
     }
