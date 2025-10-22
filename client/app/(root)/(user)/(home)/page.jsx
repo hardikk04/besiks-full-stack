@@ -3,12 +3,14 @@ import HeroBanner from "@/components/home/HeroBanner";
 import React from "react";
 import ProductCard from "@/components/home/ProductCard";
 import Image from "next/image";
+import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { FreeMode } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/free-mode";
 import Categories from "@/components/home/Categories";
 import { useGetAllProductsQuery } from "@/features/products/productApi";
+import { Button } from "@/components/ui/button";
 
 const page = () => {
   const { data: productsData, isLoading, isError } = useGetAllProductsQuery();
@@ -109,8 +111,18 @@ const page = () => {
         </div>
       </section>
 
-      <section className="container relative mx-auto px-4 sm:px-6 lg:px-16 py-10">
-        <div className="absolute"></div>
+      <section className="cta-banner container relative mx-auto px-4 sm:px-6 lg:px-16 py-10">
+        {/* Overlay Card */}
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-4">
+          <div className="pointer-events-auto max-w-md w-full rounded-xl bg-background/90 backdrop-blur shadow-lg border p-6 md:p-8 text-center space-y-4">
+            <h3 className="text-2xl md:text-3xl font-semibold">Fresh Arrivals Are Here</h3>
+            <div className="flex items-center justify-center gap-4">
+              <Link href="/shop" passHref>
+                <Button size="lg">Shop now</Button>
+              </Link>
+            </div>
+          </div>
+        </div>
         <div className="h-[60vh] w-full rounded-xl overflow-hidden">
           <Image
             src={"/img/Frame 186.png"}
