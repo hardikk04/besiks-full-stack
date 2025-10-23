@@ -17,6 +17,7 @@ const couponRoutes = require("./routes/coupons");
 const cartRoutes = require("./routes/cart");
 const wishlistRoutes = require("./routes/wishlist");
 const appSettingsRoutes = require("./routes/appSettings");
+const { success } = require("zod");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,35 +26,43 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     // List of allowed origins
     const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://besiks-full-stack.vercel.app',
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "https://besiks-full-stack.vercel.app",
       process.env.FRONTEND_URL,
     ];
-    
+
     // Check if origin is allowed
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       // For development, allow all origins
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         callback(null, true);
       } else {
         // In production, be more permissive for Vercel domains
-        if (origin && origin.includes('.vercel.app')) {
+        if (origin && origin.includes(".vercel.app")) {
           callback(null, true);
         } else {
-          callback(new Error('Not allowed by CORS'));
+          callback(new Error("Not allowed by CORS"));
         }
       }
     }
   },
   credentials: true, // ✅ allow cookies
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept", "Authorization", "Cache-Control", "Pragma"],
+  allowedHeaders: [
+    "Origin",
+    "X-Requested-With",
+    "Content-Type",
+    "Accept",
+    "Authorization",
+    "Cache-Control",
+    "Pragma",
+  ],
   exposedHeaders: ["set-cookie"],
   optionsSuccessStatus: 200,
 };
@@ -97,7 +106,9 @@ app.use("/v1/api/wishlist", wishlistRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "OK", message: "Server is running" });
+  res
+    .status(200)
+    .json({ status: "OK", success: true, message: "Server is running" });
 });
 
 // Error handling middleware
