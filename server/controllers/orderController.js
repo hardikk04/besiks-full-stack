@@ -69,7 +69,11 @@ const createOrder = async (req, res) => {
     });
 
     const createdOrder = await order.save();
-    res.status(201).json({ success: true, data: createdOrder });
+    res.status(201).json({
+      success: true,
+      message: "Order created successfully",
+      data: createdOrder,
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ success: false, message: "Server error" });
@@ -101,7 +105,11 @@ const getOrderById = async (req, res) => {
         .json({ success: false, message: "Not authorized" });
     }
 
-    res.status(201).json({ success: true, data: order });
+    res.status(201).json({
+      success: true,
+      message: "Order fetched successfully",
+      data: order,
+    });
   } catch (err) {
     console.error(err.message);
     if (err.kind === "ObjectId") {
@@ -122,10 +130,14 @@ const getMyOrders = async (req, res) => {
       "orderItems.product",
       "name price image"
     );
-    res.status(201).json({ success: true, data: orders });
+    res.status(201).json({
+      success: true,
+      message: "Orders fetched successfully",
+      data: orders,
+    });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -137,10 +149,14 @@ const getAllOrders = async (req, res) => {
     const orders = await Order.find({})
       .populate("user", "id name")
       .populate("orderItems.product", "name price image");
-    res.status(201).json({ success: true, data: orders });
+    res.status(201).json({
+      success: true,
+      message: "Orders fetched successfully",
+      data: orders,
+    });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -152,7 +168,9 @@ const updateOrderToDelivered = async (req, res) => {
     const order = await Order.findById(req.params.id);
 
     if (!order) {
-      return res.status(404).json({ message: "Order not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
     }
 
     order.isDelivered = true;
@@ -160,7 +178,13 @@ const updateOrderToDelivered = async (req, res) => {
     order.status = "delivered";
 
     const updatedOrder = await order.save();
-    res.status(201).json({ success: true, data: updatedOrder });
+    res
+      .status(201)
+      .json({
+        success: true,
+        message: "Order delivered successfully",
+        data: updatedOrder,
+      });
   } catch (err) {
     console.error(err.message);
     if (err.kind === "ObjectId") {
@@ -168,7 +192,7 @@ const updateOrderToDelivered = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Order not found" });
     }
-    res.status(500).send({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 

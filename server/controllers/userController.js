@@ -7,7 +7,11 @@ const User = require("../models/User");
 const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
-    res.status(200).json({ success: true, data: user });
+    res.status(200).json({
+      success: true,
+      message: "User fetched successfully",
+      data: user,
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ success: false, message: "Server error" });
@@ -43,7 +47,11 @@ const updateUserProfile = async (req, res) => {
       { new: true }
     ).select("-password");
 
-    res.status(200).json({ success: true, data: user });
+    res.status(200).json({
+      success: true,
+      message: "User updated successfully",
+      data: user,
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ success: false, message: "Server error" });
@@ -86,7 +94,13 @@ const updateUserPassword = async (req, res) => {
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.find();
-    res.status(200).json({ success: true, data: users });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Users fetched successfully",
+        data: users,
+      });
   } catch (error) {
     console.error(err.message);
     res.status(500).json({ success: false, message: "Server error" });

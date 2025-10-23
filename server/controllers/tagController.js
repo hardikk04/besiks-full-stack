@@ -1,5 +1,5 @@
-const Tag = require('../models/Tag');
-const { mongooseIdValidation } = require('../validation/product/validation');
+const Tag = require("../models/Tag");
+const { mongooseIdValidation } = require("../validation/product/validation");
 
 // @desc    Get all tags
 // @route   GET /api/tags
@@ -7,17 +7,18 @@ const { mongooseIdValidation } = require('../validation/product/validation');
 const getTags = async (req, res) => {
   try {
     const tags = await Tag.find({ isActive: true }).sort({ name: 1 });
-    
+
     res.status(200).json({
       success: true,
+      message: "Tags fetched successfully",
       count: tags.length,
-      data: tags
+      data: tags,
     });
   } catch (error) {
-    console.error('Get tags error:', error);
+    console.error("Get tags error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error while fetching tags'
+      message: "Server error while fetching tags",
     });
   }
 };
@@ -37,29 +38,30 @@ const getTag = async (req, res) => {
     }
 
     const tag = await Tag.findById(req.params.id);
-    
+
     if (!tag) {
       return res.status(404).json({
         success: false,
-        message: 'Tag not found'
+        message: "Tag not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: tag
+      message: "Tag fetched successfully",
+      data: tag,
     });
   } catch (error) {
-    console.error('Get tag error:', error);
+    console.error("Get tag error:", error);
     if (error.kind === "ObjectId") {
       return res.status(404).json({
         success: false,
-        message: 'Tag not found'
+        message: "Tag not found",
       });
     }
     res.status(500).json({
       success: false,
-      message: 'Server error while fetching tag'
+      message: "Server error while fetching tag",
     });
   }
 };
@@ -74,33 +76,36 @@ const createTag = async (req, res) => {
     if (!name) {
       return res.status(400).json({
         success: false,
-        message: 'Tag name is required'
+        message: "Tag name is required",
       });
     }
 
     // Check if tag already exists
-    const existingTag = await Tag.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
+    const existingTag = await Tag.findOne({
+      name: { $regex: new RegExp(`^${name}$`, "i") },
+    });
     if (existingTag) {
       return res.status(400).json({
         success: false,
-        message: 'Tag with this name already exists'
+        message: "Tag with this name already exists",
       });
     }
 
     const tag = await Tag.create({
       name,
-      description
+      description,
     });
 
     res.status(201).json({
       success: true,
-      data: tag
+      message: "Tag created successfully",
+      data: tag,
     });
   } catch (error) {
-    console.error('Create tag error:', error);
+    console.error("Create tag error:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error while creating tag'
+      message: "Server error while creating tag",
     });
   }
 };
@@ -122,24 +127,24 @@ const updateTag = async (req, res) => {
     const { name, description, isActive } = req.body;
 
     let tag = await Tag.findById(req.params.id);
-    
+
     if (!tag) {
       return res.status(404).json({
         success: false,
-        message: 'Tag not found'
+        message: "Tag not found",
       });
     }
 
     // Check if new name conflicts with existing tag
     if (name && name !== tag.name) {
-      const existingTag = await Tag.findOne({ 
-        name: { $regex: new RegExp(`^${name}$`, 'i') },
-        _id: { $ne: req.params.id }
+      const existingTag = await Tag.findOne({
+        name: { $regex: new RegExp(`^${name}$`, "i") },
+        _id: { $ne: req.params.id },
       });
       if (existingTag) {
         return res.status(400).json({
           success: false,
-          message: 'Tag with this name already exists'
+          message: "Tag with this name already exists",
         });
       }
     }
@@ -152,19 +157,20 @@ const updateTag = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: tag
+      message: "Tag updated successfully",
+      data: tag,
     });
   } catch (error) {
-    console.error('Update tag error:', error);
+    console.error("Update tag error:", error);
     if (error.kind === "ObjectId") {
       return res.status(404).json({
         success: false,
-        message: 'Tag not found'
+        message: "Tag not found",
       });
     }
     res.status(500).json({
       success: false,
-      message: 'Server error while updating tag'
+      message: "Server error while updating tag",
     });
   }
 };
@@ -184,11 +190,11 @@ const deleteTag = async (req, res) => {
     }
 
     const tag = await Tag.findById(req.params.id);
-    
+
     if (!tag) {
       return res.status(404).json({
         success: false,
-        message: 'Tag not found'
+        message: "Tag not found",
       });
     }
 
@@ -196,19 +202,19 @@ const deleteTag = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Tag deleted successfully'
+      message: "Tag deleted successfully",
     });
   } catch (error) {
-    console.error('Delete tag error:', error);
+    console.error("Delete tag error:", error);
     if (error.kind === "ObjectId") {
       return res.status(404).json({
         success: false,
-        message: 'Tag not found'
+        message: "Tag not found",
       });
     }
     res.status(500).json({
       success: false,
-      message: 'Server error while deleting tag'
+      message: "Server error while deleting tag",
     });
   }
 };
@@ -218,5 +224,5 @@ module.exports = {
   getTag,
   createTag,
   updateTag,
-  deleteTag
-}; 
+  deleteTag,
+};

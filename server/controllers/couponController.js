@@ -15,6 +15,7 @@ const getCoupons = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: "Coupons fetched successfully",  
       count: coupons.length,
       data: coupons,
     });
@@ -41,6 +42,7 @@ const getActiveCoupons = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: "Active coupons fetched successfully", 
       count: coupons.length,
       data: coupons,
     });
@@ -78,6 +80,7 @@ const getCoupon = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: "Coupon fetched successfully",
       data: coupon,
     });
   } catch (error) {
@@ -168,6 +171,7 @@ const createCoupon = async (req, res) => {
 
     res.status(201).json({
       success: true,
+      message: "Coupon created successfully",
       data: coupon,
     });
   } catch (error) {
@@ -231,6 +235,7 @@ const updateCoupon = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: "Coupon updated successfully",
       data: coupon,
     });
   } catch (error) {
@@ -336,6 +341,7 @@ const validateCoupon = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: "Coupon validated successfully",
       data: {
         coupon: {
           id: coupon._id,

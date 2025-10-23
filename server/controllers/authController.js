@@ -48,6 +48,7 @@ const adminLogin = async (req, res) => {
 
       res.status(200).json({
         success: true,
+        message: "Admin logged in successfully",
         token,
         admin: {
           id: admin._id,
@@ -123,6 +124,7 @@ const loginUser = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: "User logged in successfully",
       token,
       user: {
         id: user._id,
@@ -157,6 +159,7 @@ const getMe = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: "User profile fetched successfully",
       user,
     });
   } catch (error) {

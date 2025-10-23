@@ -11,10 +11,14 @@ const {
 const getCategories = async (req, res) => {
   try {
     const categories = await Category.find().sort("sortOrder");
-    res.json({ success: true, categories });
+    res.status(200).json({
+      success: true,
+      message: "Categories fetched successfully",
+      categories,
+    });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send({ sucess: false, message: "Server error" });
+    res.status(500).json({ sucess: false, message: "Server error" });
   }
 };
 
@@ -23,11 +27,13 @@ const getCategories = async (req, res) => {
 // @access  Public
 const getFeaturedCategories = async (req, res) => {
   try {
-    const categories = await Category.find({ isActive: true }).sort("sortOrder");
-    res.json({ success: true, categories });
+    const categories = await Category.find({ isActive: true }).sort(
+      "sortOrder"
+    );
+    res.status(200).json({ success: true, categories });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send({ sucess: false, message: "Server error" });
+    res.status(500).json({ sucess: false, message: "Server error" });
   }
 };
 
@@ -52,8 +58,9 @@ const searchCategories = async (req, res) => {
 
     const count = await Category.countDocuments(query);
 
-    res.json({
+    res.status(200).json({
       success: true,
+      message: "Categories fetched successfully",
       categories,
       totalPages: Math.ceil(count / limit),
       currentPage: page,
@@ -85,7 +92,11 @@ const getCategoryById = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Category not found" });
     }
-    res.json(category);
+    res.status(200).json({
+      success: true,
+      message: "Category fetched successfully",
+      category,
+    });
   } catch (err) {
     console.error(err.message);
     if (err.kind === "ObjectId") {
@@ -93,7 +104,7 @@ const getCategoryById = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Category not found" });
     }
-    res.status(500).send({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -114,14 +125,14 @@ const createCategory = async (req, res) => {
 
     const newCategory = new Category(parsed.data);
     const category = await newCategory.save();
-    res.json({
+    res.status(201).json({
       success: true,
       message: "Category created successfully",
       category,
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -152,7 +163,7 @@ const updateCategory = async (req, res) => {
       { new: true }
     );
 
-    res.json({
+    res.status(200).json({
       success: false,
       message: "Category updated successfully",
       category,
@@ -191,7 +202,7 @@ const deleteCategory = async (req, res) => {
     }
 
     await Category.deleteOne({ _id: req.params.id }); // instead of category.remove()
-    res.json({ success: true, message: "Category removed" });
+    res.status(200).json({ success: true, message: "Category removed" });
   } catch (err) {
     console.error(err.message);
     if (err.kind === "ObjectId") {
@@ -227,7 +238,7 @@ const updateCategoryStatus = async (req, res) => {
     category.isActive = !category.isActive;
     await category.save();
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: `Category ${
         category.isActive ? "activated" : "deactivated"
@@ -274,18 +285,18 @@ const getProductsByCategory = async (req, res) => {
     }
 
     // Get query parameters for filtering and sorting
-    const { 
-      sort = 'createdAt', 
-      order = 'desc',
+    const {
+      sort = "createdAt",
+      order = "desc",
       minPrice,
       maxPrice,
-      isActive = true 
+      isActive = true,
     } = req.query;
 
     // Build query object
-    let query = { 
+    let query = {
       categories: parsed.data,
-      isActive: isActive === 'true' || isActive === true
+      isActive: isActive === "true" || isActive === true,
     };
 
     // Add price range filter if provided
@@ -296,25 +307,26 @@ const getProductsByCategory = async (req, res) => {
     }
 
     // Build sort object
-    const sortOrder = order === 'desc' ? -1 : 1;
+    const sortOrder = order === "desc" ? -1 : 1;
     const sortObj = { [sort]: sortOrder };
 
     // Execute query to get ALL products in the category
     const products = await Product.find(query)
-      .populate('categories', 'name')
-      .populate('tags', 'name')
+      .populate("categories", "name")
+      .populate("tags", "name")
       .sort(sortObj)
-      .select('-reviews'); // Exclude reviews for better performance
+      .select("-reviews"); // Exclude reviews for better performance
 
-    res.json({
+    res.status(200).json({
       success: true,
       products,
+      message: "Products fetched successfully",
       totalProducts: products.length,
       category: {
         _id: category._id,
         name: category.name,
-        description: category.description
-      }
+        description: category.description,
+      },
     });
   } catch (err) {
     console.error(err.message);

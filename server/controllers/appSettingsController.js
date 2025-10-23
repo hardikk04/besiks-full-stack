@@ -1,3 +1,4 @@
+const { success } = require("zod");
 const AppSettings = require("../models/AppSettings");
 
 // Get App Settings
@@ -8,7 +9,13 @@ exports.getSettings = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Settings not found" });
-    res.json({ success: true, data: settings });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Settings Fetched Successfully",
+        data: settings,
+      });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -25,9 +32,13 @@ exports.createSettings = async (req, res) => {
 
     settings = new AppSettings(req.body);
     await settings.save();
-    res.status(201).json({ success: true, data: settings });
+    res.status(201).json({
+      success: true,
+      message: "Settings created successfully",
+      data: settings,
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -53,7 +64,11 @@ exports.updateLogo = async (req, res) => {
     const settings = await getOrCreateSettings({ logo: req.body.logo || "" });
     settings.logo = req.body.logo;
     await settings.save();
-    res.json({ success: true, data: settings });
+    res.status(200).json({
+      success: true,
+      message: "Logo Updated Successfully",
+      data: settings,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -71,7 +86,11 @@ exports.updateHeroBanners = async (req, res) => {
 
     settings.heroBanners = req.body.heroBanners;
     await settings.save();
-    res.json({ success: true, data: settings });
+    res.status(200).json({
+      success: true,
+      message: "Hero Banners Updated Successfully",
+      data: settings,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -83,7 +102,11 @@ exports.updateWeeklyHighlights = async (req, res) => {
     const settings = await getOrCreateSettings();
     settings.weeklyHighlights = req.body.weeklyHighlights;
     await settings.save();
-    res.json({ success: true, data: settings });
+    res.status(200).json({
+      success: true,
+      message: "Weekly Highlights Updated Successfully",
+      data: settings,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -95,7 +118,11 @@ exports.updatePromoBanner = async (req, res) => {
     const settings = await getOrCreateSettings();
     settings.promoBanner = req.body.promoBanner;
     await settings.save();
-    res.json({ success: true, data: settings });
+    res.status(200).json({
+      success: true,
+      message: "Promo Banner Updated Successfully",
+      data: settings,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -107,7 +134,11 @@ exports.updateCTA = async (req, res) => {
     const settings = await getOrCreateSettings();
     settings.cta = req.body.cta;
     await settings.save();
-    res.json({ success: true, data: settings });
+    res.status(200).json({
+      success: true,
+      message: "CTA Updated Successfully",
+      data: settings,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

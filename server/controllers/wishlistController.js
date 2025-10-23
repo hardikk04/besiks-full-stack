@@ -22,6 +22,7 @@ exports.getWishlist = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: "Wishlist fetched successfully",
       data: wishlist,
     });
   } catch (err) {
@@ -92,7 +93,7 @@ exports.addToWishlist = async (req, res) => {
       select: "name price images stock isActive rating numReviews",
     });
 
-    res.status(200).json({
+    res.status(201).json({
       success: true,
       message: "Product added to wishlist successfully",
       data: wishlist,
@@ -199,8 +200,9 @@ exports.checkWishlistStatus = async (req, res) => {
     const wishlist = await Wishlist.findOne({ user: req.user.id });
 
     if (!wishlist) {
-      return res.status(200).json({
-        success: true,
+      return res.status(404).json({
+        success: false,
+        message: "Wishlist not found",
         data: { isInWishlist: false },
       });
     }
@@ -209,6 +211,7 @@ exports.checkWishlistStatus = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: "Wishlist status checked successfully",
       data: { isInWishlist },
     });
   } catch (err) {
@@ -226,11 +229,12 @@ exports.getWishlistCount = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: "Wishlist count fetched successfully",
       data: { count },
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server error");
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -281,7 +285,7 @@ exports.moveToCart = async (req, res) => {
     );
     await wishlist.save();
 
-    res.status(200).json({
+    res.status(201).json({
       success: true,
       message:
         "Product moved to cart successfully. Please add it to your cart.",
@@ -349,7 +353,7 @@ exports.mergeGuestWishlist = async (req, res) => {
       select: "name price images stock isActive rating numReviews",
     });
 
-    res.status(200).json({
+    res.status(201).json({
       success: true,
       message: "Guest wishlist merged successfully",
       data: wishlist,

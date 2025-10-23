@@ -12,6 +12,7 @@ exports.getCart = async (req, res) => {
     if (!cart) {
       return res.status(200).json({
         success: true,
+        message: "Cart not found",
         data: {
           items: [],
           totalPrice: 0,
@@ -22,6 +23,7 @@ exports.getCart = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: "Cart fetched successfully",
       data: cart,
     });
   } catch (err) {
@@ -111,7 +113,7 @@ exports.addToCart = async (req, res) => {
       select: "name price images stock isActive",
     });
 
-    res.status(200).json({
+    res.status(201).json({
       success: true,
       message: "Item added to cart successfully",
       data: cart,
@@ -266,6 +268,7 @@ exports.getCartCount = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: "Cart count fetched successfully",
       data: { count },
     });
   } catch (err) {
@@ -351,7 +354,7 @@ exports.mergeGuestCart = async (req, res) => {
       select: "name price images stock isActive",
     });
 
-    res.status(200).json({
+    res.status(201).json({
       success: true,
       message: "Guest cart merged successfully",
       data: cart,

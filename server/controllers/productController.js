@@ -7,6 +7,7 @@ const {
   createProductValidation,
   mongooseIdValidation,
 } = require("../validation/product/validation");
+const { success } = require("zod");
 
 // @desc    Get all products
 // @route   GET /api/products
@@ -72,8 +73,9 @@ const getProducts = async (req, res) => {
 
     const count = await Product.countDocuments(query);
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
+      message: "Products fetched successfully",
       products,
       totalPages: Math.ceil(count / limit),
       currentPage: page,
@@ -110,7 +112,7 @@ const getProductById = async (req, res) => {
     }
 
     res
-      .status(201)
+      .status(200)
       .json({ sucess: true, message: "Product found successfully", product });
   } catch (err) {
     console.error(err.message);
@@ -119,7 +121,7 @@ const getProductById = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Product not found" });
     }
-    res.status(500).send("Server error");
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -163,7 +165,7 @@ const createProduct = async (req, res) => {
     const product = await newProduct.save();
     res.status(201).json({
       success: true,
-      message: `Product created`,
+      message: `Product created successfully`,
       product,
     });
   } catch (err) {
@@ -203,11 +205,17 @@ const updateProduct = async (req, res) => {
       { new: true }
     );
 
-    res.status(201).json({ success: true, data: product });
+    res.status(200).json({
+      success: true,
+      message: "Product updated successfully",
+      data: product,
+    });
   } catch (err) {
     console.error(err.message);
     if (err.kind === "ObjectId") {
-      return res.status(404).json({ message: "Product not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found" });
     }
     res.status(500).json({ success: true, message: "Server error" });
   }
@@ -234,7 +242,7 @@ const deleteProduct = async (req, res) => {
     }
 
     res
-      .status(201)
+      .status(200)
       .json({ success: false, message: "Product removed successfully" });
   } catch (err) {
     console.error(err.message);
@@ -276,7 +284,7 @@ const updateProductStatus = async (req, res) => {
     product.isActive = !product.isActive;
     await product.save();
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       message: `Product ${
         product.isActive ? "activated" : "deactivated"
@@ -369,7 +377,7 @@ const searchProducts = async (req, res) => {
     const totalProducts = await Product.countDocuments(filter);
     const totalPages = Math.ceil(totalProducts / limitNum);
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       message: `Found ${totalProducts} product(s) matching your search`,
       data: {
@@ -409,7 +417,11 @@ const getNewProducts = async (req, res) => {
       .limit(limit)
       .exec();
 
-    res.status(201).json({ success: true, products });
+    res.status(200).json({
+      success: true,
+      message: "Newest Products found successfully",
+      products,
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ success: false, message: "Server error" });
@@ -470,7 +482,13 @@ const getRecentPurchases = async (req, res) => {
         .lean();
     }
 
-    return res.status(201).json({ success: true, products });
+    return res
+      .status(200)
+      .json({
+        success: true,
+        message: "Recent Purchases found successfully",
+        products,
+      });
   } catch (err) {
     console.error(err.message);
     return res.status(500).json({ success: false, message: "Server error" });
