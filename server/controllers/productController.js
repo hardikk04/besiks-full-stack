@@ -7,7 +7,6 @@ const {
   createProductValidation,
   mongooseIdValidation,
 } = require("../validation/product/validation");
-const { success } = require("zod");
 
 // @desc    Get all products
 // @route   GET /api/products

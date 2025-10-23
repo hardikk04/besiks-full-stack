@@ -1,4 +1,3 @@
-const { success } = require("zod");
 const AppSettings = require("../models/AppSettings");
 
 // Get App Settings

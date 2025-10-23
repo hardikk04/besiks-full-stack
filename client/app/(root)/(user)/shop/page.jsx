@@ -41,7 +41,9 @@ const ShopContent = () => {
   // Filter products by category
   const filteredProducts = activeFilter === "All" 
     ? products 
-    : products.filter(product => product.category?.name === activeFilter);
+    : products.filter(product => 
+        product.categories && product.categories.some(category => category.name === activeFilter)
+      );
 
   // Show loading state
   if (productsLoading || categoriesLoading || featuredCategoriesLoading || (searchQuery.trim() && searchLoading)) {
@@ -94,13 +96,13 @@ const ShopContent = () => {
               </Swiper>
             </div>
 
-            {/* Desktop Grid */}
-            <div className="hidden pt-4 md:flex flex-wrap justify-between gap-4 lg:gap-8">
+            {/* Desktop Horizontal Scroll */}
+            <div className="hidden pt-4 md:flex overflow-x-auto scrollbar-hide gap-4 lg:gap-8">
               {filters.map((filter) => (
                 <button
                   key={filter}
                   onClick={() => setActiveFilter(filter)}
-                  className={`px-6 py-2 rounded-full text-sm md:text-base font-medium transition-all duration-300 ${
+                  className={`px-6 py-2 rounded-full text-sm md:text-base font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
                     activeFilter === filter
                       ? "bg-white text-gray-900 shadow-lg"
                       : "text-gray-300"
