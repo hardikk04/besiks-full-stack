@@ -316,7 +316,7 @@ const getProductsByCategory = async (req, res) => {
     const db = req.app.locals.db || require('mongoose').connection.db;
     const products = await db.collection('products').find(query).toArray();
     
-    // Populate categories and tags manually since we're using native driver
+    // Populate categories, tags, and reviews manually since we're using native driver
     const populatedProducts = await Promise.all(products.map(async (product) => {
       // Populate categories
       const categoryIds = product.categories.map(id => new mongoose.Types.ObjectId(id));
@@ -329,10 +329,29 @@ const getProductsByCategory = async (req, res) => {
         tags = await require('../models/Tag').find({ _id: { $in: tagIds } }).select('name');
       }
       
+      // Populate reviews if they exist
+      let populatedReviews = [];
+      if (product.reviews && product.reviews.length > 0) {
+        const User = require('../models/User');
+        const userIds = product.reviews.map(review => new mongoose.Types.ObjectId(review.user));
+        const users = await User.find({ _id: { $in: userIds } }).select('name avatar');
+        
+        // Create a map of user data for quick lookup
+        const userMap = new Map();
+        users.forEach(user => userMap.set(user._id.toString(), user));
+        
+        // Populate reviews with user data
+        populatedReviews = product.reviews.map(review => ({
+          ...review,
+          user: userMap.get(review.user.toString()) || { _id: review.user, name: 'Unknown User' }
+        }));
+      }
+      
       return {
         ...product,
         categories,
-        tags
+        tags,
+        reviews: populatedReviews
       };
     }));
     
