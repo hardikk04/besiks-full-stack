@@ -1,5 +1,6 @@
 const Category = require("../models/Category");
 const Product = require("../models/Product");
+const mongoose = require("mongoose");
 const { mongooseIdValidation } = require("../validation/product/validation");
 const {
   createCategoryValidation,
@@ -295,7 +296,7 @@ const getProductsByCategory = async (req, res) => {
 
     // Build query object
     let query = {
-      categories: parsed.data,
+      categories: parsed.data.toString(),
       isActive: isActive === "true" || isActive === true,
     };
 
@@ -311,17 +312,46 @@ const getProductsByCategory = async (req, res) => {
     const sortObj = { [sort]: sortOrder };
 
     // Execute query to get ALL products in the category
-    const products = await Product.find(query)
-      .populate("categories", "name")
-      .populate("tags", "name")
-      .sort(sortObj)
-      .select("-reviews"); // Exclude reviews for better performance
+    // Use native MongoDB driver to handle string category IDs
+    const db = req.app.locals.db || require('mongoose').connection.db;
+    const products = await db.collection('products').find(query).toArray();
+    
+    // Populate categories and tags manually since we're using native driver
+    const populatedProducts = await Promise.all(products.map(async (product) => {
+      // Populate categories
+      const categoryIds = product.categories.map(id => new mongoose.Types.ObjectId(id));
+      const categories = await Category.find({ _id: { $in: categoryIds } }).select('name');
+      
+      // Populate tags if they exist
+      let tags = [];
+      if (product.tags && product.tags.length > 0) {
+        const tagIds = product.tags.map(id => new mongoose.Types.ObjectId(id));
+        tags = await require('../models/Tag').find({ _id: { $in: tagIds } }).select('name');
+      }
+      
+      return {
+        ...product,
+        categories,
+        tags
+      };
+    }));
+    
+    // Sort the populated products
+    const sortedProducts = populatedProducts.sort((a, b) => {
+      const aValue = a[sort];
+      const bValue = b[sort];
+      if (sortOrder === -1) {
+        return bValue > aValue ? 1 : -1;
+      } else {
+        return aValue > bValue ? 1 : -1;
+      }
+    });
 
     res.status(200).json({
       success: true,
-      products,
+      products: sortedProducts,
       message: "Products fetched successfully",
-      totalProducts: products.length,
+      totalProducts: sortedProducts.length,
       category: {
         _id: category._id,
         name: category.name,
