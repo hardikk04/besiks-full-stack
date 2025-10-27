@@ -427,15 +427,97 @@ const getNewProducts = async (req, res) => {
   }
 };
 
-// @desc    Get recent purchases for the authenticated user, fallback to products
+// @desc    Get recent purchases for the authenticated user, fallback to best sellers for non-authenticated users
 // @route   GET /api/products/recent-purchases
-// @access  Private (requires auth cookie)
+// @access  Public (works for both authenticated and non-authenticated users)
 const getRecentPurchases = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
 
-    // Find recent orders for this user
-    const recentOrders = await Order.find({ user: req.user?._id })
+    // If user is not authenticated, return best sellers
+    if (!req.user || !req.user._id) {
+      // Aggregate products by order frequency for best sellers
+      const bestSellingProducts = await Order.aggregate([
+        // Unwind order items to get individual products
+        { $unwind: "$orderItems" },
+        
+        // Group by product and count occurrences
+        {
+          $group: {
+            _id: "$orderItems.product",
+            orderCount: { $sum: "$orderItems.quantity" },
+            totalOrders: { $sum: 1 }
+          }
+        },
+        
+        // Sort by order count (most popular first)
+        { $sort: { orderCount: -1 } },
+        
+        // Limit results
+        { $limit: limit },
+        
+        // Lookup product details
+        {
+          $lookup: {
+            from: "products",
+            localField: "_id",
+            foreignField: "_id",
+            as: "product"
+          }
+        },
+        
+        // Unwind product array
+        { $unwind: "$product" },
+        
+        // Lookup categories
+        {
+          $lookup: {
+            from: "categories",
+            localField: "product.categories",
+            foreignField: "_id",
+            as: "categories"
+          }
+        },
+        
+        // Project final structure
+        {
+          $project: {
+            _id: "$product._id",
+            name: "$product.name",
+            description: "$product.description",
+            price: "$product.price",
+            images: "$product.images",
+            categories: "$categories",
+            orderCount: 1,
+            totalOrders: 1
+          }
+        }
+      ]);
+
+      // If no orders exist, fallback to newest products
+      if (bestSellingProducts.length === 0) {
+        const products = await Product.find({})
+          .populate("categories", "name")
+          .sort({ createdAt: -1 })
+          .limit(limit)
+          .exec();
+
+        return res.status(200).json({
+          success: true,
+          message: "Best Sellers found successfully (fallback to newest)",
+          products,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Best Sellers found successfully",
+        products: bestSellingProducts,
+      });
+    }
+
+    // User is authenticated - find recent orders for this user
+    const recentOrders = await Order.find({ user: req.user._id })
       .sort({ createdAt: -1 })
       .limit(10)
       .select("orderItems")
@@ -494,6 +576,97 @@ const getRecentPurchases = async (req, res) => {
   }
 };
 
+// @desc    Get best selling products based on order frequency
+// @route   GET /api/products/best-sellers
+// @access  Public
+const getBestSellers = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+
+    // Aggregate products by order frequency
+    const bestSellingProducts = await Order.aggregate([
+      // Unwind order items to get individual products
+      { $unwind: "$orderItems" },
+      
+      // Group by product and count occurrences
+      {
+        $group: {
+          _id: "$orderItems.product",
+          orderCount: { $sum: "$orderItems.quantity" },
+          totalOrders: { $sum: 1 }
+        }
+      },
+      
+      // Sort by order count (most popular first)
+      { $sort: { orderCount: -1 } },
+      
+      // Limit results
+      { $limit: limit },
+      
+      // Lookup product details
+      {
+        $lookup: {
+          from: "products",
+          localField: "_id",
+          foreignField: "_id",
+          as: "product"
+        }
+      },
+      
+      // Unwind product array
+      { $unwind: "$product" },
+      
+      // Lookup categories
+      {
+        $lookup: {
+          from: "categories",
+          localField: "product.categories",
+          foreignField: "_id",
+          as: "categories"
+        }
+      },
+      
+      // Project final structure
+      {
+        $project: {
+          _id: "$product._id",
+          name: "$product.name",
+          description: "$product.description",
+          price: "$product.price",
+          images: "$product.images",
+          categories: "$categories",
+          orderCount: 1,
+          totalOrders: 1
+        }
+      }
+    ]);
+
+    // If no orders exist, fallback to newest products
+    if (bestSellingProducts.length === 0) {
+      const products = await Product.find({})
+        .populate("categories", "name")
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .exec();
+
+      return res.status(200).json({
+        success: true,
+        message: "Best Sellers found successfully (fallback to newest)",
+        products,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Best Sellers found successfully",
+      products: bestSellingProducts,
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 module.exports = {
   getProducts,
   getProductById,
@@ -504,4 +677,5 @@ module.exports = {
   searchProducts,
   getNewProducts,
   getRecentPurchases,
+  getBestSellers,
 };

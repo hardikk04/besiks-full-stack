@@ -12,6 +12,7 @@ import WishlistSheet from "@/components/shared/wishlist/WishlistSheet";
 import SearchResults from "@/components/shared/search/SearchResults";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
+import { useCartContext } from "@/components/providers/CartProvider";
 import { Badge } from "@/components/ui/badge";
 
 const navigation = [
@@ -68,12 +69,12 @@ const megaMenuCategories = [
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showMegaMenu, setShowMegaMenu] = useState(false);
-  const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   
-  // Get cart and wishlist counts
+  // Get cart context and cart/wishlist counts
+  const { isCartOpen, setIsCartOpen } = useCartContext();
   const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
 

@@ -2,12 +2,14 @@ import { useSelector, useDispatch } from "react-redux";
 import { useGetCartQuery, useAddToCartMutation, useUpdateCartItemMutation, useRemoveFromCartMutation, useGetCartCountQuery } from "@/features/cart/cartApi";
 import { useMergeGuestCartMutation } from "@/features/cart/cartService";
 import { addToGuestCart, updateGuestCartItem, removeFromGuestCart, clearGuestCart, mergeGuestCart } from "@/features/cart/guestCartSlice";
+import { useCartContext } from "@/components/providers/CartProvider";
 import { toast } from "sonner";
 
 export const useCart = () => {
   const dispatch = useDispatch();
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
   const guestCart = useSelector((state) => state.guestCart);
+  const { openCart } = useCartContext();
 
   // API hooks for authenticated users
   const { data: cartData, isLoading, isError } = useGetCartQuery(undefined, {
@@ -46,9 +48,11 @@ export const useCart = () => {
           quantity,
         }).unwrap();
         toast.success("Product added to cart");
+        openCart(); // Open cart sheet after successful addition
       } else {
         dispatch(addToGuestCart({ product, quantity }));
         toast.success("Product added to cart");
+        openCart(); // Open cart sheet after successful addition
       }
     } catch (error) {
       toast.error(error?.data?.message || "Failed to add to cart");

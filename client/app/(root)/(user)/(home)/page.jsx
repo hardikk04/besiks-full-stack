@@ -9,12 +9,18 @@ import { FreeMode } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/free-mode";
 import Categories from "@/components/home/Categories";
-import {  useGetNewProductsQuery, useGetRecentPurchasesQuery } from "@/features/products/productApi";
+import { useGetNewProductsQuery, useGetRecentPurchasesQuery } from "@/features/products/productApi";
 import { Button } from "@/components/ui/button";
+import { useSelector } from "react-redux";
 
 const page = () => {
+  // Get authentication state
+  const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  
+  // Use single endpoint that handles both cases
   const { data: productsData, isLoading, isError } = useGetRecentPurchasesQuery();
   const products = (productsData?.products || []).filter(product => product && product._id);
+  
   const { data: newestData, isLoading: isLoadingNew, isError: isErrorNew } = useGetNewProductsQuery(10);
   const newestProducts = (newestData?.products || []).filter(product => product && product._id);
 
@@ -24,10 +30,12 @@ const page = () => {
       <HeroBanner />
       <section className="container mx-auto px-4 sm:px-6 lg:px-16 py-10">
         <div className="py-4">
-          <h2 className="text-3xl font-medium">Recent Purchases</h2>
+          <h2 className="text-3xl font-medium">
+            {isAuthenticated ? "Recent Purchases" : "Best Sellers"}
+          </h2>
         </div>
 
-        {/* Recent Purchases Swiper */}
+        {/* Dynamic Products Swiper - Recent Purchases for logged users, Best Sellers for guests */}
         <div>
           {isLoading ? (
             <div className="text-center text-muted-foreground py-8">

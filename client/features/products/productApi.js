@@ -20,6 +20,10 @@ export const productApi = createApi({
       query: (limit = 10) => `/recent-purchases?limit=${limit}`,
       providesTags: ["Products"],
     }),
+    getBestSellers: builder.query({
+      query: (limit = 10) => `/best-sellers?limit=${limit}`,
+      providesTags: ["Products"],
+    }),
     createProduct: builder.mutation({
       query: (productInput) => ({
         url: "/",
@@ -53,6 +57,7 @@ export const {
   useGetAllProductsQuery,
   useGetNewProductsQuery,
   useGetRecentPurchasesQuery,
+  useGetBestSellersQuery,
   useDeleteProductMutation,
   useUpdateIsActiveMutation,
   useSearchProductQuery,

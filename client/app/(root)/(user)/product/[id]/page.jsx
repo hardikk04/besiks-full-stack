@@ -227,7 +227,7 @@ const page = () => {
                   <button
                     key={color.name}
                     onClick={() => setSelectedColor(color.name)}
-                    className={`w-8 h-8 rounded-full border-2 ${
+                    className={`w-8 h-8 rounded-full border-2 cursor-pointer ${
                       selectedColor === color.name
                         ? "border-gray-800 ring-2 ring-gray-300"
                         : "border-gray-300"
@@ -252,7 +252,7 @@ const page = () => {
                 <span className="text-sm text-black mr-3">Quantity</span>
                 <button
                   onClick={() => handleQuantityChange("decrease")}
-                  className="text-gray-600 hover:text-gray-800 px-2"
+                  className="text-gray-600 hover:text-gray-800 px-2 cursor-pointer"
                   disabled={quantity <= 1}
                 >
                   -
@@ -260,14 +260,14 @@ const page = () => {
                 <span className="mx-3 text-sm font-medium">{quantity}</span>
                 <button
                   onClick={() => handleQuantityChange("increase")}
-                  className="text-gray-600 hover:text-gray-800 px-2"
+                  className="text-gray-600 hover:text-gray-800 px-2 cursor-pointer"
                 >
                   +
                 </button>
               </div>
 
               <Button 
-                className="flex-1 bg-[#174986] text-white py-3 rounded-sm"
+                className="flex-1 bg-[#174986] text-white py-3 rounded-sm cursor-pointer"
                 onClick={handleAddToCart}
                 disabled={product.stock <= 0}
               >
@@ -279,7 +279,7 @@ const page = () => {
             <div className="grid grid-cols-2 gap-3">
               <Button
                 variant="outline"
-                className="flex items-center bg-[#E6E6E6] justify-center gap-2 rounded-sm"
+                className="flex items-center bg-[#E6E6E6] justify-center gap-2 rounded-sm cursor-pointer"
                 onClick={handleAddToWishlist}
               >
                 <Heart className={`w-4 h-4 ${isInWishlist(product?._id) ? 'fill-red-500 text-red-500' : ''}`} />
@@ -287,7 +287,7 @@ const page = () => {
               </Button>
               <Button
                 variant="outline"
-                className="flex items-center bg-[#E6E6E6] justify-center gap-2 rounded-sm"
+                className="flex items-center bg-[#E6E6E6] justify-center gap-2 rounded-sm cursor-pointer"
               >
                 <Share className="w-4 h-4" />
                 Share

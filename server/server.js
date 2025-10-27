@@ -17,7 +17,6 @@ const couponRoutes = require("./routes/coupons");
 const cartRoutes = require("./routes/cart");
 const wishlistRoutes = require("./routes/wishlist");
 const appSettingsRoutes = require("./routes/appSettings");
-const { success } = require("zod");
 
 const app = express();
 const PORT = process.env.PORT || 5000;

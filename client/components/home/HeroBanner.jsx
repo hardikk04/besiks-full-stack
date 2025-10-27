@@ -30,7 +30,7 @@ const HeroBanner = () => {
   ];
 
   return (
-    <section className="relative w-full py-8">
+    <section className="relative w-full pt-8">
       <div className="container mx-auto px-4 sm:px-6 lg:px-16">
         <div className="w-full rounded-xl overflow-hidden relative">
           <Swiper
