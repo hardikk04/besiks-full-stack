@@ -1,14 +1,20 @@
 const express = require("express");
 const router = express.Router();
 const controller = require("../controllers/appSettingsController");
+const { admin, protect } = require("../middleware/auth");
 
 router.get("/", controller.getSettings);
-router.post("/", controller.createSettings);
+router.post("/", protect, admin, controller.createSettings);
 
-router.put("/logo", controller.updateLogo);
-router.put("/hero-banners", controller.updateHeroBanners);
-router.put("/weekly-highlights", controller.updateWeeklyHighlights);
-router.put("/promo-banner", controller.updatePromoBanner);
-router.put("/cta", controller.updateCTA);
+router.put("/logo", protect, admin, controller.updateLogo);
+router.put("/hero-banners", protect, admin, controller.updateHeroBanners);
+router.put(
+  "/weekly-highlights",
+  protect,
+  admin,
+  controller.updateWeeklyHighlights
+);
+router.put("/promo-banner", protect, admin, controller.updatePromoBanner);
+router.put("/cta", protect, admin, controller.updateCTA);
 
 module.exports = router;
