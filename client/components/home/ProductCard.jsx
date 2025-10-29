@@ -46,7 +46,7 @@ const ProductCard = ({ product }) => {
         <p className="text-gray-600 text-sm sm:text-base">Price: ₹{product.price || 0}</p>
         <div className="mt-auto">
           <Button 
-            className="w-full bg-[#174986] text-sm sm:text-base cursor-pointer"
+            className="w-full bg-[#174986] hover:bg-[#174986]/90 text-sm sm:text-base cursor-pointer"
             onClick={handleAddToCart}
           >
             Add to Cart

@@ -1,6 +1,7 @@
 import { useSelector, useDispatch } from "react-redux";
 import { useGetCartQuery, useAddToCartMutation, useUpdateCartItemMutation, useRemoveFromCartMutation, useGetCartCountQuery } from "@/features/cart/cartApi";
 import { useMergeGuestCartMutation } from "@/features/cart/cartService";
+import { useCreateOrderMutation } from "@/features/orders/orderApi";
 import { addToGuestCart, updateGuestCartItem, removeFromGuestCart, clearGuestCart, mergeGuestCart } from "@/features/cart/guestCartSlice";
 import { useCartContext } from "@/components/providers/CartProvider";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ export const useCart = () => {
     skip: !isAuthenticated,
   });
   const [mergeGuestCartMutation] = useMergeGuestCartMutation();
+  const [createOrderMutation] = useCreateOrderMutation();
 
   // Get current cart data (authenticated or guest)
   const getCurrentCart = () => {
@@ -47,11 +49,9 @@ export const useCart = () => {
           productId: product._id,
           quantity,
         }).unwrap();
-        toast.success("Product added to cart");
         openCart(); // Open cart sheet after successful addition
       } else {
         dispatch(addToGuestCart({ product, quantity }));
-        toast.success("Product added to cart");
         openCart(); // Open cart sheet after successful addition
       }
     } catch (error) {
@@ -67,10 +67,8 @@ export const useCart = () => {
           productId,
           quantity,
         }).unwrap();
-        toast.success("Cart updated");
       } else {
         dispatch(updateGuestCartItem({ productId, quantity }));
-        toast.success("Cart updated");
       }
     } catch (error) {
       toast.error(error?.data?.message || "Failed to update cart");
@@ -122,6 +120,17 @@ export const useCart = () => {
     }
   };
 
+  // Create order from cart
+  const createOrderFromCart = async (orderData) => {
+    try {
+      const result = await createOrderMutation(orderData).unwrap();
+      return result;
+    } catch (error) {
+      console.error('Create order error:', error);
+      throw error;
+    }
+  };
+
   return {
     cart: getCurrentCart(),
     cartCount: getCartCount(),
@@ -132,6 +141,7 @@ export const useCart = () => {
     removeFromCart,
     clearCart,
     mergeGuestCartOnLogin,
+    createOrderFromCart,
     isAuthenticated,
   };
 };

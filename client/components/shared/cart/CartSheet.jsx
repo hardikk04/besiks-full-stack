@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -13,10 +15,12 @@ import {
 import { ShoppingCart, X, Plus, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/hooks/useCart";
+import { toast } from "sonner";
 
 const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
-  const { cart, cartCount: actualCartCount, isLoading, isError, updateCartItem, removeFromCart } = useCart();
+  const { cart, cartCount: actualCartCount, isLoading, isError, updateCartItem, removeFromCart, isAuthenticated } = useCart();
   const [isClient, setIsClient] = useState(false);
+  const router = useRouter();
 
   // Prevent hydration mismatch by only rendering cart count on client side
   useEffect(() => {
@@ -35,6 +39,18 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
     await removeFromCart(productId);
   };
 
+  const handleCheckoutClick = () => {
+    if (!isAuthenticated) {
+      toast.error("Please login to proceed with checkout");
+      const returnUrl = encodeURIComponent("/checkout");
+      router.push(`/auth/login?returnUrl=${returnUrl}`);
+      onOpenChange(false);
+      return;
+    }
+    router.push("/checkout");
+    onOpenChange(false);
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>
@@ -43,11 +59,11 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
           size="icon"
           className="text-gray-600 hover:text-blue-600 relative"
         >
-          <ShoppingCart className="h-5 w-5" />
+          <ShoppingCart strokeWidth={2.5} className="h-5 w-5" />
           {isClient && totalItems > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+              className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
             >
               {totalItems}
             </Badge>
@@ -136,7 +152,12 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
                               Math.max(1, item.quantity - 1)
                             )
                           }
-                          className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                          disabled={item.quantity <= 1}
+                          className={`w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center transition-colors ${
+                            item.quantity <= 1 
+                              ? 'opacity-50 cursor-not-allowed' 
+                              : 'bg-[#174986] hover:bg-[#174986]/90 text-white'
+                          }`}
                         >
                           <Minus className="h-3 w-3" />
                         </button>
@@ -147,7 +168,7 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
                           onClick={() =>
                             updateQuantity(item.product._id, item.quantity + 1)
                           }
-                          className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                          className="w-8 h-8 rounded-full bg-[#174986] hover:bg-[#174986]/90 text-white flex items-center justify-center transition-colors"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
@@ -177,7 +198,7 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
               </div>
 
               <div className="space-y-2">
-                <Button className="w-full" size="lg">
+                <Button className="w-full" size="lg" onClick={handleCheckoutClick}>
                   Proceed to Checkout
                 </Button>
                 <Button

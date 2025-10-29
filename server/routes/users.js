@@ -7,7 +7,6 @@ const {
   getAllUsers,
 } = require("../controllers/userController");
 const auth = require("../middleware/auth");
-const User = require("../models/User");
 
 const router = express.Router();
 

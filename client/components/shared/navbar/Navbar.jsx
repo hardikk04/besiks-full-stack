@@ -6,7 +6,14 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, Search, Heart, User, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Menu, Search, Heart, User, ChevronDown, Package, LogOut } from "lucide-react";
 import CartSheet from "@/components/shared/cart/CartSheet";
 import WishlistSheet from "@/components/shared/wishlist/WishlistSheet";
 import SearchResults from "@/components/shared/search/SearchResults";
@@ -14,6 +21,9 @@ import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useCartContext } from "@/components/providers/CartProvider";
 import { Badge } from "@/components/ui/badge";
+import { useSelector, useDispatch } from "react-redux";
+import { logout } from "@/features/auth/authSlice";
+import { toast } from "sonner";
 
 const navigation = [
   { name: "Home", href: "/" },
@@ -77,6 +87,9 @@ const Navbar = () => {
   const { isCartOpen, setIsCartOpen } = useCartContext();
   const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
+  const dispatch = useDispatch();
+  const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  const user = useSelector((state) => state.auth.user);
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -95,6 +108,13 @@ const Navbar = () => {
     setTimeout(() => {
       setShowSearchResults(false);
     }, 200);
+  };
+
+  const handleLogout = () => {
+    dispatch(logout());
+    toast.success("Logged out successfully");
+    // Optionally redirect to home page
+    window.location.href = "/";
   };
 
   const closeSearchResults = () => {
@@ -203,14 +223,55 @@ const Navbar = () => {
             <CartSheet isOpen={isCartOpen} onOpenChange={setIsCartOpen} cartCount={cartCount} />
 
             {/* User Profile Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-gray-600 hover:text-blue-600"
-            >
-              <User className="h-5 w-5" />
-              <span className="sr-only">User profile</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-gray-600 hover:text-blue-600"
+                >
+                  <User strokeWidth={2.5} className="h-5 w-5" />
+                  <span className="sr-only">User profile</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {isAuthenticated ? (
+                  <>
+                    <div className="px-2 py-1.5 text-sm font-medium text-gray-900">
+                      {user?.name || "User"}
+                    </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile" className="flex items-center">
+                        <User className="h-4 w-4 mr-2" />
+                        Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/orders" className="flex items-center">
+                        <Package className="h-4 w-4 mr-2" />
+                        My Orders
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      className="flex items-center text-red-600"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Logout
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <Link href="/auth/login" className="flex items-center">
+                      <User className="h-4 w-4 mr-2" />
+                      Login
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* Mobile menu button */}
             <div className="md:hidden">

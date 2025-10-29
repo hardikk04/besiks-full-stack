@@ -14,10 +14,17 @@ export const authApi = createApi({
         body: adminLoginInput,
       }),
     }),
+    userLogin: builder.mutation({
+      query: (loginInput) => ({
+        url: "login",
+        method: "POST",
+        body: loginInput,
+      }),
+    }),
     logout: builder.query({
       query: () => "admin/logout", // 👈 GET method
     }),
   }),
 });
 
-export const { useAdminLoginMutation, useLazyLogoutQuery } = authApi;
+export const { useAdminLoginMutation, useUserLoginMutation, useLazyLogoutQuery } = authApi;

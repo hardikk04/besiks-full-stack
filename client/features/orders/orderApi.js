@@ -36,9 +36,10 @@ export const orderApi = createApi({
       invalidatesTags: ["Order"],
     }),
     confirmPayment: builder.mutation({
-      query: (id) => ({
+      query: ({ id, paymentData }) => ({
         url: `/${id}/confirm-payment`,
         method: "PUT",
+        body: paymentData,
       }),
       invalidatesTags: ["Order"],
     }),
