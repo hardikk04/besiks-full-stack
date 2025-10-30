@@ -9,6 +9,7 @@ import {
   useUpdateWeeklyHighlightsMutation,
   useUpdatePromoBannerMutation,
   useUpdateCTAMutation,
+  useUpdateMegaMenuMutation,
 } from "@/features/appSettings/appSettingsApi";
 import { uploadToCloudinary } from "@/hooks/uploadImage";
 import { Button } from "@/components/ui/button";
@@ -26,12 +27,15 @@ export default function AppSettingsPage() {
   const [updateWeeklyHighlights] = useUpdateWeeklyHighlightsMutation();
   const [updatePromoBanner] = useUpdatePromoBannerMutation();
   const [updateCTA] = useUpdateCTAMutation();
+  const [updateMegaMenu] = useUpdateMegaMenuMutation();
 
   const [logo, setLogo] = useState("");
   const [heroBanners, setHeroBanners] = useState([{ image: "", text: "", link: "" }]);
   const [weeklyHighlights, setWeeklyHighlights] = useState([{ image: "", text: "", link: "" }]);
   const [promoBanner, setPromoBanner] = useState({ image: "", text: "", link: "" });
   const [cta, setCta] = useState({ text: "", link: "" });
+  const [megaMenu, setMegaMenu] = useState([{ title: "", items: [{ name: "", href: "" }] }]);
+  const [activeSection, setActiveSection] = useState("logo");
 
   useEffect(() => {
     if (settings) {
@@ -42,6 +46,9 @@ export default function AppSettingsPage() {
       );
       setPromoBanner(settings.promoBanner || { image: "", text: "", link: "" });
       setCta(settings.cta || { text: "", link: "" });
+      // Deep clone to avoid mutating frozen objects from RTK cache
+      const initialMega = settings.megaMenu?.length ? settings.megaMenu : [{ title: "", items: [{ name: "", href: "" }] }];
+      setMegaMenu(JSON.parse(JSON.stringify(initialMega)));
     }
   }, [settings]);
 
@@ -53,6 +60,7 @@ export default function AppSettingsPage() {
         weeklyHighlights: weeklyHighlights?.length ? weeklyHighlights : [],
         promoBanner,
         cta,
+        megaMenu,
       };
       try {
         await createSettings(payload).unwrap();
@@ -109,6 +117,18 @@ export default function AppSettingsPage() {
     toast.success("CTA updated");
   };
 
+  const saveMegaMenu = async () => {
+    await ensureInitialized();
+    const cleaned = megaMenu
+      .filter((m) => m.title && (m.items?.length ?? 0) > 0)
+      .map((m) => ({
+        title: m.title,
+        items: (m.items || []).filter((i) => i.name && i.href),
+      }));
+    await updateMegaMenu({ megaMenu: cleaned }).unwrap();
+    toast.success("Mega menu updated");
+  };
+
   const addItem = (list, setList) => setList([...list, { image: "", text: "", link: "" }]);
   const removeItem = (list, setList, idx) => setList(list.filter((_, i) => i !== idx));
 
@@ -118,7 +138,30 @@ export default function AppSettingsPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <Card>
+      {/* Top Nav for sections */}
+      <div className="sticky top-16 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="flex flex-wrap gap-2 px-1 py-2">
+          {[
+            { id: "logo", label: "Logo" },
+            { id: "hero-banners", label: "Hero Banners" },
+            { id: "weekly-highlights", label: "Weekly Highlights" },
+            { id: "promo-banner", label: "Promo Banner" },
+            { id: "cta", label: "CTA" },
+            { id: "mega-menu", label: "Mega Menu" },
+          ].map((s) => (
+            <Button
+              key={s.id}
+              variant="outline"
+              size="sm"
+              onClick={() => setActiveSection(s.id)}
+            >
+              {s.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+      {activeSection === "logo" && (
+      <Card id="logo">
         <CardHeader>
           <CardTitle>Logo</CardTitle>
         </CardHeader>
@@ -134,8 +177,10 @@ export default function AppSettingsPage() {
           </div>
         </CardContent>
       </Card>
+      )}
 
-      <Card>
+      {activeSection === "hero-banners" && (
+      <Card id="hero-banners">
         <CardHeader>
           <CardTitle>Hero Banners (max 5)</CardTitle>
         </CardHeader>
@@ -195,8 +240,10 @@ export default function AppSettingsPage() {
           </div>
         </CardContent>
       </Card>
+      )}
 
-      <Card>
+      {activeSection === "weekly-highlights" && (
+      <Card id="weekly-highlights">
         <CardHeader>
           <CardTitle>Weekly Highlights</CardTitle>
         </CardHeader>
@@ -252,8 +299,10 @@ export default function AppSettingsPage() {
           </div>
         </CardContent>
       </Card>
+      )}
 
-      <Card>
+      {activeSection === "promo-banner" && (
+      <Card id="promo-banner">
         <CardHeader>
           <CardTitle>Promo Banner</CardTitle>
         </CardHeader>
@@ -285,8 +334,10 @@ export default function AppSettingsPage() {
           </div>
         </CardContent>
       </Card>
+      )}
 
-      <Card>
+      {activeSection === "cta" && (
+      <Card id="cta">
         <CardHeader>
           <CardTitle>CTA</CardTitle>
         </CardHeader>
@@ -300,6 +351,99 @@ export default function AppSettingsPage() {
           </div>
         </CardContent>
       </Card>
+      )}
+
+      {activeSection === "mega-menu" && (
+      <Card id="mega-menu">
+        <CardHeader>
+          <CardTitle>Mega Menu</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {megaMenu.map((cat, cIdx) => (
+            <div key={cIdx} className="space-y-3 border p-3 rounded">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Category title"
+                  value={cat.title}
+                  onChange={(e) => {
+                    const next = [...megaMenu];
+                    next[cIdx] = { ...next[cIdx], title: e.target.value };
+                    setMegaMenu(next);
+                  }}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => setMegaMenu(megaMenu.filter((_, i) => i !== cIdx))}
+                >
+                  Remove
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {(cat.items || []).map((item, iIdx) => (
+                  <div key={iIdx} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2">
+                    <Input
+                      placeholder="Item name"
+                      value={item.name}
+                      onChange={(e) => {
+                        const next = megaMenu.map((cat) => ({ ...cat, items: [...(cat.items || [])] }));
+                        const updatedCat = { ...next[cIdx] };
+                        updatedCat.items[iIdx] = { ...updatedCat.items[iIdx], name: e.target.value };
+                        next[cIdx] = updatedCat;
+                        setMegaMenu(next);
+                      }}
+                    />
+                    <Input
+                      placeholder="Item href (/shop/...)"
+                      value={item.href}
+                      onChange={(e) => {
+                        const next = megaMenu.map((cat) => ({ ...cat, items: [...(cat.items || [])] }));
+                        const updatedCat = { ...next[cIdx] };
+                        updatedCat.items[iIdx] = { ...updatedCat.items[iIdx], href: e.target.value };
+                        next[cIdx] = updatedCat;
+                        setMegaMenu(next);
+                      }}
+                    />
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        const next = megaMenu.map((cat) => ({ ...cat, items: [...(cat.items || [])] }));
+                        const updatedCat = { ...next[cIdx] };
+                        updatedCat.items = updatedCat.items.filter((_, j) => j !== iIdx);
+                        next[cIdx] = updatedCat;
+                        setMegaMenu(next);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const next = megaMenu.map((cat) => ({ ...cat, items: [...(cat.items || [])] }));
+                    const updatedCat = { ...next[cIdx] };
+                    updatedCat.items = [...(updatedCat.items || []), { name: "", href: "" }];
+                    next[cIdx] = updatedCat;
+                    setMegaMenu(next);
+                  }}
+                >
+                  Add Item
+                </Button>
+              </div>
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setMegaMenu([...megaMenu, { title: "", items: [{ name: "", href: "" }] }])}
+            >
+              Add Category
+            </Button>
+            <Button onClick={saveMegaMenu}>Save</Button>
+          </div>
+        </CardContent>
+      </Card>
+      )}
     </div>
   );
 }

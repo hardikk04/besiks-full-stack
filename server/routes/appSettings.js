@@ -16,5 +16,6 @@ router.put(
 );
 router.put("/promo-banner", protect, admin, controller.updatePromoBanner);
 router.put("/cta", protect, admin, controller.updateCTA);
+router.put("/mega-menu", protect, admin, controller.updateMegaMenu);
 
 module.exports = router;

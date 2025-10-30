@@ -53,6 +53,17 @@ const createProductValidation = z.object({
     .array(z.string().url("Image must be a valid URL"))
     .min(1, "At least one product image is required"),
 
+  colors: z
+    .array(
+      z.object({
+        name: z.string().min(1, "Color name is required"),
+        value: z.string().min(1, "Color value is required"), // hex or css color
+      })
+    )
+    .optional(),
+
+  sizes: z.array(z.string().min(1, "Size cannot be empty")).optional(),
+
   brand: z.string().optional(),
 
   sku: z.string().optional(),

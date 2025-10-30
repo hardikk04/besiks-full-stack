@@ -111,7 +111,7 @@ const page = () => {
       </section>
 
       <section className="min-h-screen flex items-center">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-168">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16">
             {/* Left Image */}
             <div className="relative order-2 lg:order-1">

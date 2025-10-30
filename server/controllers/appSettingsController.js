@@ -51,6 +51,7 @@ async function getOrCreateSettings(initial = {}) {
       weeklyHighlights: initial.weeklyHighlights || [],
       promoBanner: initial.promoBanner || { image: "", text: "", link: "" },
       cta: initial.cta || { text: "", link: "" },
+      megaMenu: initial.megaMenu || [],
     });
     await settings.save();
   }
@@ -136,6 +137,22 @@ exports.updateCTA = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "CTA Updated Successfully",
+      data: settings,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Update Mega Menu
+exports.updateMegaMenu = async (req, res) => {
+  try {
+    const settings = await getOrCreateSettings();
+    settings.megaMenu = req.body.megaMenu || [];
+    await settings.save();
+    res.status(200).json({
+      success: true,
+      message: "Mega menu updated successfully",
       data: settings,
     });
   } catch (err) {

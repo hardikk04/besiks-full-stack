@@ -32,6 +32,18 @@ const AppSettingsSchema = new mongoose.Schema(
       text: { type: String },
       link: { type: String },
     },
+
+  megaMenu: [
+    {
+      title: { type: String, required: true },
+      items: [
+        {
+          name: { type: String, required: true },
+          href: { type: String, required: true },
+        },
+      ],
+    },
+  ],
   },
   { timestamps: true }
 );

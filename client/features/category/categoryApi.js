@@ -19,7 +19,7 @@ export const categoryApi = createApi({
     createCategory: builder.mutation({
       query: (categoryInput) => ({
         url: "/",
-        method: "POST",
+        method: "POST", 
         body: categoryInput,
       }),
       invalidatesTags: ["Category"],

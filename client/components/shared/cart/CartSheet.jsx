@@ -57,7 +57,7 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
         <Button
           variant="ghost"
           size="icon"
-          className="text-gray-600 hover:text-blue-600 relative"
+          className="text-gray-600 hover:text-blue-600 relative cursor-pointer"
         >
           <ShoppingCart strokeWidth={2.5} className="h-5 w-5" />
           {isClient && totalItems > 0 && (
@@ -106,7 +106,7 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
         ) : (
           <>
             {/* Cart Items */}
-            <div className="flex-1 overflow-y-auto py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto py-4 space-y-4 px-4">
               {cartItems.map((item) => (
                 <div
                   key={item.product._id}
@@ -136,7 +136,7 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
                       </div>
                       <button
                         onClick={() => removeItem(item.product._id)}
-                        className="text-gray-400 hover:text-red-500 transition-colors"
+                        className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
                       >
                         <span className="text-xs">Remove</span>
                       </button>
@@ -144,7 +144,7 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
 
                     <div className="flex items-center justify-between">
                       {/* Quantity Controls */}
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 border rounded-md border-[#174986]">
                         <button
                           onClick={() =>
                             updateQuantity(
@@ -153,13 +153,13 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
                             )
                           }
                           disabled={item.quantity <= 1}
-                          className={`w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center transition-colors ${
+                          className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
                             item.quantity <= 1 
                               ? 'opacity-50 cursor-not-allowed' 
-                              : 'bg-[#174986] hover:bg-[#174986]/90 text-white'
+                              : 'text-white cursor-pointer'
                           }`}
                         >
-                          <Minus className="h-3 w-3" />
+                          <Minus className="h-3 w-3" color="#174986"/>
                         </button>
                         <span className="font-medium min-w-[20px] text-center">
                           {item.quantity}
@@ -168,9 +168,9 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
                           onClick={() =>
                             updateQuantity(item.product._id, item.quantity + 1)
                           }
-                          className="w-8 h-8 rounded-full bg-[#174986] hover:bg-[#174986]/90 text-white flex items-center justify-center transition-colors"
+                          className="w-8 cursor-pointer h-8 text-white flex items-center justify-center transition-colors"
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="h-3 w-3" color="#174986"/>
                         </button>
                       </div>
 
@@ -198,12 +198,12 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
               </div>
 
               <div className="space-y-2">
-                <Button className="w-full" size="lg" onClick={handleCheckoutClick}>
+                <Button className="w-full cursor-pointer" size="lg" onClick={handleCheckoutClick}>
                   Proceed to Checkout
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full"
+                  className="w-full cursor-pointer"
                   onClick={() => onOpenChange(false)}
                 >
                   Continue Shopping

@@ -52,6 +52,11 @@ const AddProductPage = () => {
   const [images, setImages] = useState([]);
   const [isActive, setIsActive] = useState(true);
   const [errors, setErrors] = useState({});
+  const [sizes, setSizes] = useState([]);
+  const [sizeInput, setSizeInput] = useState("");
+  const [colors, setColors] = useState([]); // {name, value}
+  const [colorName, setColorName] = useState("");
+  const [colorValue, setColorValue] = useState("#000000");
 
   const [
     createProduct,
@@ -219,6 +224,10 @@ const AddProductPage = () => {
 
       // Images - Cloudinary URLs (already uploaded)
       images: images.map((img) => img.url),
+
+      // Variants
+      sizes: sizes,
+      colors: colors,
 
       // SEO
       slug: formData.slug,
@@ -676,6 +685,117 @@ const AddProductPage = () => {
                 onCheckedChange={setIsActive}
               />
               <Label htmlFor="active">{isActive ? "Active" : "Draft"}</Label>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Separator />
+
+        {/* Variants Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Variants</CardTitle>
+            <CardDescription>Add sizes and colors for this product</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Sizes */}
+            <div className="space-y-2">
+              <Label htmlFor="size">Sizes</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="size"
+                  placeholder="e.g. S, M, L, XL"
+                  value={sizeInput}
+                  onChange={(e) => setSizeInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (sizeInput.trim() && !sizes.includes(sizeInput.trim())) {
+                        setSizes([...sizes, sizeInput.trim()]);
+                        setSizeInput("");
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    if (sizeInput.trim() && !sizes.includes(sizeInput.trim())) {
+                      setSizes([...sizes, sizeInput.trim()]);
+                      setSizeInput("");
+                    }
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {sizes.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {sizes.map((s, idx) => (
+                    <Badge key={idx} variant="secondary" className="flex items-center gap-1 pr-1">
+                      <span>{s}</span>
+                      <button
+                        type="button"
+                        className="ml-1 hover:text-red-500 focus:outline-none"
+                        onClick={() => setSizes(sizes.filter((x) => x !== s))}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Colors */}
+            <div className="space-y-2">
+              <Label>Colors</Label>
+              <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
+                <Input
+                  placeholder="Color name (e.g. Black)"
+                  value={colorName}
+                  onChange={(e) => setColorName(e.target.value)}
+                />
+                <input
+                  type="color"
+                  value={colorValue}
+                  onChange={(e) => setColorValue(e.target.value)}
+                  className="h-10 w-12 p-0 border rounded"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    if (colorName.trim()) {
+                      setColors([...colors, { name: colorName.trim(), value: colorValue }]);
+                      setColorName("");
+                      setColorValue("#000000");
+                    }
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {colors.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {colors.map((c, idx) => (
+                    <Badge key={idx} variant="secondary" className="flex items-center gap-2 pr-1">
+                      <span className="inline-flex items-center gap-2">
+                        <span className="w-4 h-4 rounded-sm border" style={{ backgroundColor: c.value }} />
+                        {c.name}
+                      </span>
+                      <button
+                        type="button"
+                        className="ml-1 hover:text-red-500 focus:outline-none"
+                        onClick={() => setColors(colors.filter((_, i) => i !== idx))}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

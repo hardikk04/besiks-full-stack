@@ -43,7 +43,7 @@ const WishlistSheet = ({ isOpen, onOpenChange, wishlistCount = 0 }) => {
         <Button
           variant="ghost"
           size="icon"
-          className="text-gray-600 hover:text-blue-600 relative"
+          className="text-gray-600 hover:text-blue-600 relative cursor-pointer"
         >
           <Heart strokeWidth={2.5} className="h-5 w-5 font-bold" />
           {isClient && totalItems > 0 && (
@@ -77,7 +77,7 @@ const WishlistSheet = ({ isOpen, onOpenChange, wishlistCount = 0 }) => {
             <div className="text-red-500">Error loading wishlist</div>
           </div>
         ) : wishlistProducts.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center">
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
             <Heart className="h-16 w-16 text-gray-300 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               Your wishlist is empty
@@ -85,7 +85,7 @@ const WishlistSheet = ({ isOpen, onOpenChange, wishlistCount = 0 }) => {
             <p className="text-gray-500 mb-6">
               Add some products to your wishlist
             </p>
-            <Button className="w-full" onClick={() => onOpenChange(false)}>
+            <Button className="w-full cursor-pointer" onClick={() => onOpenChange(false)}>
               Continue Shopping
             </Button>
           </div>

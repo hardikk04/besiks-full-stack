@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -17,6 +18,7 @@ const couponRoutes = require("./routes/coupons");
 const cartRoutes = require("./routes/cart");
 const wishlistRoutes = require("./routes/wishlist");
 const appSettingsRoutes = require("./routes/appSettings");
+const uploadRoutes = require("./routes/uploads");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -82,6 +84,9 @@ app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static assets (uploaded files)
+app.use("/assets", express.static(path.join(__dirname, "public", "assets")));
+
 // Database connection
 mongoose
   .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/ecommerce", {
@@ -102,6 +107,7 @@ app.use("/v1/api/tags", tagRoutes);
 app.use("/v1/api/coupons", couponRoutes);
 app.use("/v1/api/cart", cartRoutes);
 app.use("/v1/api/wishlist", wishlistRoutes);
+app.use("/v1/api/uploads", uploadRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

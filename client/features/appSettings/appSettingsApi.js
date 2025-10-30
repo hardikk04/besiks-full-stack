@@ -60,6 +60,14 @@ export const appSettingsApi = createApi({
       }),
       invalidatesTags: ["AppSettings"],
     }),
+    updateMegaMenu: builder.mutation({
+      query: (megaMenuData) => ({
+        url: "/mega-menu",
+        method: "PUT",
+        body: megaMenuData,
+      }),
+      invalidatesTags: ["AppSettings"],
+    }),
   }),
 });
 
@@ -71,4 +79,5 @@ export const {
   useUpdateWeeklyHighlightsMutation,
   useUpdatePromoBannerMutation,
   useUpdateCTAMutation,
+  useUpdateMegaMenuMutation,
 } = appSettingsApi;

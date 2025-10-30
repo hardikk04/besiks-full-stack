@@ -296,9 +296,9 @@ const getProductsByCategory = async (req, res) => {
 
     // Build query object
     let query = {
-      categories: parsed.data.toString(),
+      categories: new mongoose.Types.ObjectId(parsed.data),
       isActive: isActive === "true" || isActive === true,
-    };
+    };    
 
     // Add price range filter if provided
     if (minPrice || maxPrice) {

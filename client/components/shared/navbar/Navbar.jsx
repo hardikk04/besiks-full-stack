@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
+import { useGetSettingsQuery } from "@/features/appSettings/appSettingsApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -33,48 +34,7 @@ const navigation = [
   { name: "About Us", href: "/about" },
 ];
 
-const megaMenuCategories = [
-  {
-    title: "Clothing",
-    items: [
-      { name: "T-Shirts", href: "/shop/clothing/t-shirts" },
-      { name: "Jeans", href: "/shop/clothing/jeans" },
-      { name: "Dresses", href: "/shop/clothing/dresses" },
-      { name: "Jackets", href: "/shop/clothing/jackets" },
-      { name: "Sweaters", href: "/shop/clothing/sweaters" },
-    ],
-  },
-  {
-    title: "Electronics",
-    items: [
-      { name: "Smartphones", href: "/shop/electronics/smartphones" },
-      { name: "Laptops", href: "/shop/electronics/laptops" },
-      { name: "Headphones", href: "/shop/electronics/headphones" },
-      { name: "Smart Watches", href: "/shop/electronics/smartwatches" },
-      { name: "Cameras", href: "/shop/electronics/cameras" },
-    ],
-  },
-  {
-    title: "Home & Garden",
-    items: [
-      { name: "Furniture", href: "/shop/home/furniture" },
-      { name: "Decor", href: "/shop/home/decor" },
-      { name: "Kitchen", href: "/shop/home/kitchen" },
-      { name: "Bedding", href: "/shop/home/bedding" },
-      { name: "Garden Tools", href: "/shop/home/garden" },
-    ],
-  },
-  {
-    title: "Sports & Fitness",
-    items: [
-      { name: "Exercise Equipment", href: "/shop/sports/equipment" },
-      { name: "Sportswear", href: "/shop/sports/wear" },
-      { name: "Outdoor Gear", href: "/shop/sports/outdoor" },
-      { name: "Team Sports", href: "/shop/sports/team" },
-      { name: "Fitness Accessories", href: "/shop/sports/accessories" },
-    ],
-  },
-];
+// pulled from app settings
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -82,6 +42,9 @@ const Navbar = () => {
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const megaMenuCloseTimeout = useRef(null);
+  const { data: settingsData } = useGetSettingsQuery();
+  const megaMenuCategories = settingsData?.data?.megaMenu || [];
   
   // Get cart context and cart/wishlist counts
   const { isCartOpen, setIsCartOpen } = useCartContext();
@@ -121,6 +84,32 @@ const Navbar = () => {
     setShowSearchResults(false);
   };
 
+  const openMegaMenu = () => {
+    if (megaMenuCloseTimeout.current) {
+      clearTimeout(megaMenuCloseTimeout.current);
+      megaMenuCloseTimeout.current = null;
+    }
+    setShowMegaMenu(true);
+  };
+
+  const scheduleCloseMegaMenu = () => {
+    if (megaMenuCloseTimeout.current) {
+      clearTimeout(megaMenuCloseTimeout.current);
+    }
+    megaMenuCloseTimeout.current = setTimeout(() => {
+      setShowMegaMenu(false);
+      megaMenuCloseTimeout.current = null;
+    }, 200);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (megaMenuCloseTimeout.current) {
+        clearTimeout(megaMenuCloseTimeout.current);
+      }
+    };
+  }, []);
+
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-white">
       <div className="container mx-auto px-4 sm:px-6 lg:px-16">
@@ -142,8 +131,8 @@ const Navbar = () => {
                   {item.hasMegaMenu ? (
                     <div
                       className="relative"
-                      onMouseEnter={() => setShowMegaMenu(true)}
-                      onMouseLeave={() => setShowMegaMenu(false)}
+                      onMouseEnter={openMegaMenu}
+                      onMouseLeave={scheduleCloseMegaMenu}
                     >
                       <Link
                         href={item.href}
@@ -154,8 +143,13 @@ const Navbar = () => {
                       </Link>
 
                       {/* Mega Menu */}
-                      {showMegaMenu && (
-                        <div className="absolute top-full left-0 w-screen max-w-4xl bg-white border border-gray-200 rounded-lg shadow-lg mt-2 p-8 grid grid-cols-4 gap-8 z-50">
+                      {showMegaMenu && megaMenuCategories?.length > 0 && (
+                        <div
+                          className="absolute top-full left-0 w-fit max-w-[90vw] bg-white border border-gray-200 rounded-lg shadow-lg mt-2 p-8 grid gap-8 z-50"
+                          style={{ gridTemplateColumns: `repeat(${Math.min(megaMenuCategories.length, 6)}, minmax(12rem, 1fr))` }}
+                          onMouseEnter={openMegaMenu}
+                          onMouseLeave={scheduleCloseMegaMenu}
+                        >
                           {megaMenuCategories.map((category) => (
                             <div key={category.title} className="space-y-4">
                               <h3 className="font-semibold text-gray-900 text-lg border-b border-gray-200 pb-2">
@@ -228,7 +222,7 @@ const Navbar = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-gray-600 hover:text-blue-600"
+                  className="text-gray-600 hover:text-blue-600 cursor-pointer"
                 >
                   <User strokeWidth={2.5} className="h-5 w-5" />
                   <span className="sr-only">User profile</span>

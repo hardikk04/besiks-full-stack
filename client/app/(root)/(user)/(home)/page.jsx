@@ -1,6 +1,6 @@
 "use client";
 import HeroBanner from "@/components/home/HeroBanner";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import ProductCard from "@/components/home/ProductCard";
 import Image from "next/image";
 import Link from "next/link";
@@ -16,6 +16,10 @@ import { useSelector } from "react-redux";
 const page = () => {
   // Get authentication state
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   // Use single endpoint that handles both cases
   const { data: productsData, isLoading, isError } = useGetRecentPurchasesQuery();
@@ -30,8 +34,8 @@ const page = () => {
       <HeroBanner />
       <section className="container mx-auto px-4 sm:px-6 lg:px-16 py-10">
         <div className="py-4">
-          <h2 className="text-3xl font-medium">
-            {isAuthenticated ? "Recent Purchases" : "Best Sellers"}
+          <h2 className="text-3xl font-medium" suppressHydrationWarning>
+            {mounted && isAuthenticated ? "Recent Purchases" : "Best Sellers"}
           </h2>
         </div>
 

@@ -10,7 +10,7 @@ const ProductCard = ({ product }) => {
   // Add null check for product
   if (!product) {
     return (
-      <div className="card w-full block h-full flex flex-col">
+      <div className="card w-full h-full flex flex-col">
         <div className="product-img w-full rounded-lg overflow-hidden h-48 sm:h-56 md:h-64 lg:h-72 bg-gray-200 animate-pulse">
         </div>
         <div className="product-info py-4 flex flex-col gap-2 flex-1">
@@ -31,7 +31,7 @@ const ProductCard = ({ product }) => {
   };
 
   return (
-    <Link href={`/product/${product._id}`} className="card w-full block h-full flex flex-col">
+    <Link href={`/product/${product._id}`} className="card w-full h-full flex flex-col">
       <div className="product-img w-full rounded-lg overflow-hidden h-48 sm:h-56 md:h-64 lg:h-72">
         <Image
           src={product.images?.[0] || "/img/product.png"}
@@ -42,7 +42,7 @@ const ProductCard = ({ product }) => {
         ></Image>
       </div>
       <div className="product-info py-4 flex flex-col gap-2 flex-1">
-        <h3 className="text-base sm:text-lg font-semibold h-12 flex items-center line-clamp-2">{product.name || "Unnamed Product"}</h3>
+        <h3 className="text-base sm:text-md font-semibold leading-tight h-5 flex line-clamp-1">{product.name || "Unnamed Product"}</h3>
         <p className="text-gray-600 text-sm sm:text-base">Price: ₹{product.price || 0}</p>
         <div className="mt-auto">
           <Button 

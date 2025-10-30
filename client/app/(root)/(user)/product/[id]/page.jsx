@@ -25,6 +25,11 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import ProductSpecificationCard from "@/components/product/ProductSpecificationCard";
 import ProductInfoCard from "@/components/product/ProductInfoCard";
 import ProductCard from "@/components/home/ProductCard";
@@ -38,22 +43,29 @@ import { toast } from "sonner";
 const page = () => {
   const params = useParams();
   const productId = params.id;
-  
+
   const [quantity, setQuantity] = useState(1);
   const [selectedColor, setSelectedColor] = useState("black");
+  const [selectedSize, setSelectedSize] = useState("M");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showLessSpecs, setShowLessSpecs] = useState(false);
   const [showLessDescription, setShowLessDescription] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   // API calls
-  const { data: productsData, isLoading: productsLoading } = useGetAllProductsQuery();
+  const { data: productsData, isLoading: productsLoading } =
+    useGetAllProductsQuery();
   const { addToCart } = useCart();
   const { addToWishlist, isInWishlist } = useWishlist();
 
   // Find the current product
   const products = productsData?.products || [];
-  const product = products.find(p => p._id === productId);
-  const relatedProducts = products.filter(p => p._id !== productId && p.category?._id === product?.category?._id).slice(0, 6);
+  const product = products.find((p) => p._id === productId);
+  const relatedProducts = products
+    .filter(
+      (p) => p._id !== productId && p.category?._id === product?.category?._id
+    )
+    .slice(0, 6);
 
   // Dynamic data from product
   const images = product?.images || ["/img/product.png"];
@@ -63,6 +75,7 @@ const page = () => {
     { name: "white", value: "#FFFFFF" },
     { name: "navy", value: "#1E3A8A" },
   ];
+  const sizes = product?.sizes || ["S", "M", "L", "XL"];
 
   const handleQuantityChange = (type) => {
     if (type === "increase") {
@@ -96,7 +109,9 @@ const page = () => {
   if (productsLoading) {
     return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-16 py-8">
-        <div className="text-center text-muted-foreground">Loading product...</div>
+        <div className="text-center text-muted-foreground">
+          Loading product...
+        </div>
       </div>
     );
   }
@@ -106,8 +121,12 @@ const page = () => {
     return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-16 py-8">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Product not found</h1>
-          <p className="text-gray-600 mb-6">The product you're looking for doesn't exist.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            Product not found
+          </h1>
+          <p className="text-gray-600 mb-6">
+            The product you're looking for doesn't exist.
+          </p>
           <Link href="/shop" className="text-blue-600 hover:text-blue-700">
             Continue Shopping
           </Link>
@@ -142,19 +161,11 @@ const page = () => {
           <div className="flex gap-4">
             {/* Thumbnail Images */}
             <div className="w-24 h-96 md:h-[500px] lg:h-[550px] flex flex-col overflow-y-auto">
-              <div
-                className={`flex flex-col h-full ${
-                  images.length <= 4 ? "justify-between gap-2" : "gap-4"
-                }`}
-              >
+              <div className={`flex flex-col h-full gap-2`}>
                 {images.map((img, index) => (
                   <div
                     key={index}
-                    className={`${
-                      images.length <= 4
-                        ? "flex-1 min-h-0"
-                        : "h-20 flex-shrink-0"
-                    } bg-gray-200 rounded-lg cursor-pointer border-2 ${
+                    className={`bg-gray-200 h-24 flex-shrink-0 rounded-lg cursor-pointer border-2 ${
                       currentImageIndex === index
                         ? "border-blue-500"
                         : "border-transparent hover:border-gray-300"
@@ -212,37 +223,74 @@ const page = () => {
                 </span>
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm text-gray-600">{product.rating || 4.5} ratings</span>
+                  <span className="text-sm text-gray-600">
+                    {product.rating || 4.5} ratings
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Color Selector */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-gray-700">
-                Choose your color
-              </label>
-              <div className="flex gap-3 py-4">
-                {colors.map((color) => (
-                  <button
-                    key={color.name}
-                    onClick={() => setSelectedColor(color.name)}
-                    className={`w-8 h-8 rounded-full border-2 cursor-pointer ${
-                      selectedColor === color.name
-                        ? "border-gray-800 ring-2 ring-gray-300"
-                        : "border-gray-300"
-                    }`}
-                    style={{ backgroundColor: color.value }}
-                  />
-                ))}
+            {colors.length > 0 && (
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-gray-700">
+                  Choose your color
+                </label>
+                <div className="flex gap-3 py-4">
+                  {colors.map((color) => (
+                    <button
+                      key={color.name}
+                      onClick={() => setSelectedColor(color.name)}
+                      className={`w-8 h-8 rounded-md border-2 cursor-pointer ${
+                        selectedColor === color.name
+                          ? "ring-2"
+                          : "border-gray-300"
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Size Selector */}
+            {sizes.length > 0 && (
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-gray-700">
+                  Choose your size
+                </label>
+                <div className="flex flex-wrap gap-3 py-2">
+                  {sizes.map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setSelectedSize(size)}
+                      aria-pressed={selectedSize === size}
+                      className={`min-w-10 px-3 h-8 rounded-sm border-2 text-sm font-medium cursor-pointer transition-colors ${
+                        selectedSize === size
+                          ? "border-gray-800 text-gray-900"
+                          : "border-gray-300 text-gray-700 hover:border-gray-400"
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Stock Status */}
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${product.stock > 0 ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className={`text-sm ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {product.stock > 0 ? 'In stock' : 'Out of stock'}
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  product.stock > 0 ? "bg-green-500" : "bg-red-500"
+                }`}
+              ></div>
+              <span
+                className={`text-sm ${
+                  product.stock > 0 ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {product.stock > 0 ? "In stock" : "Out of stock"}
               </span>
             </div>
 
@@ -266,7 +314,7 @@ const page = () => {
                 </button>
               </div>
 
-              <Button 
+              <Button
                 className="flex-1 bg-[#174986] text-white py-3 rounded-sm cursor-pointer"
                 onClick={handleAddToCart}
                 disabled={product.stock <= 0}
@@ -282,7 +330,13 @@ const page = () => {
                 className="flex items-center bg-[#E6E6E6] justify-center gap-2 rounded-sm cursor-pointer"
                 onClick={handleAddToWishlist}
               >
-                <Heart className={`w-4 h-4 ${isInWishlist(product?._id) ? 'fill-red-500 text-red-500' : ''}`} />
+                <Heart
+                  className={`w-4 h-4 ${
+                    isInWishlist(product?._id)
+                      ? "fill-red-500 text-red-500"
+                      : ""
+                  }`}
+                />
                 Wishlist
               </Button>
               <Button
@@ -293,6 +347,28 @@ const page = () => {
                 Share
               </Button>
             </div>
+
+            {/* Product Details - Collapsible under actions */}
+            <Collapsible
+              open={detailsOpen}
+              onOpenChange={setDetailsOpen}
+              className="border rounded-sm"
+            >
+              <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium">
+                <span>Product details</span>
+                {detailsOpen ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-4 pb-4 text-sm text-gray-700">
+                <p className="leading-relaxed">
+                  {product.description ||
+                    "No additional details available for this product."}
+                </p>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </div>
       </section>
@@ -413,7 +489,8 @@ const page = () => {
             <div className="pt-2">
               <div className="prose prose-gray max-w-none">
                 <p className="text-gray-700 text-sm leading-relaxed mb-4">
-                  {product.description || "No description available for this product."}
+                  {product.description ||
+                    "No description available for this product."}
                 </p>
               </div>
             </div>
@@ -466,7 +543,10 @@ const page = () => {
               }}
             >
               {relatedProducts.map((relatedProduct) => (
-                <SwiperSlide key={relatedProduct._id} className="border p-2 rounded-lg">
+                <SwiperSlide
+                  key={relatedProduct._id}
+                  className="border p-2 rounded-lg"
+                >
                   <ProductCard product={relatedProduct} />
                 </SwiperSlide>
               ))}
