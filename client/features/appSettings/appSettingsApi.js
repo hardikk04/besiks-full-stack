@@ -68,6 +68,14 @@ export const appSettingsApi = createApi({
       }),
       invalidatesTags: ["AppSettings"],
     }),
+    updateNavMenu: builder.mutation({
+      query: (navMenuData) => ({
+        url: "/nav-menu",
+        method: "PUT",
+        body: navMenuData,
+      }),
+      invalidatesTags: ["AppSettings"],
+    }),
   }),
 });
 
@@ -80,4 +88,5 @@ export const {
   useUpdatePromoBannerMutation,
   useUpdateCTAMutation,
   useUpdateMegaMenuMutation,
+  useUpdateNavMenuMutation,
 } = appSettingsApi;

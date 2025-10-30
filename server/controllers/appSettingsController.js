@@ -8,12 +8,21 @@ exports.getSettings = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Settings not found" });
+    // Backwards compatibility: if navMenu missing but megaMenu exists, expose a mapped navMenu
+    const data = settings.toObject();
+    if ((!data.navMenu || data.navMenu.length === 0) && Array.isArray(data.megaMenu) && data.megaMenu.length > 0) {
+      data.navMenu = data.megaMenu.map((cat) => ({
+        label: cat.title,
+        href: undefined,
+        children: (cat.items || []).map((i) => ({ label: i.name, href: i.href, children: [] })),
+      }));
+    }
     res
       .status(200)
       .json({
         success: true,
         message: "Settings Fetched Successfully",
-        data: settings,
+        data,
       });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -52,6 +61,7 @@ async function getOrCreateSettings(initial = {}) {
       promoBanner: initial.promoBanner || { image: "", text: "", link: "" },
       cta: initial.cta || { text: "", link: "" },
       megaMenu: initial.megaMenu || [],
+      navMenu: initial.navMenu || [],
     });
     await settings.save();
   }
@@ -153,6 +163,23 @@ exports.updateMegaMenu = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Mega menu updated successfully",
+      data: settings,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Update Nav Menu (new full navbar structure)
+exports.updateNavMenu = async (req, res) => {
+  try {
+    const settings = await getOrCreateSettings();
+    const navMenu = Array.isArray(req.body.navMenu) ? req.body.navMenu : [];
+    settings.navMenu = navMenu;
+    await settings.save();
+    res.status(200).json({
+      success: true,
+      message: "Nav menu updated successfully",
       data: settings,
     });
   } catch (err) {

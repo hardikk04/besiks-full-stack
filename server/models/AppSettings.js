@@ -1,5 +1,16 @@
 const mongoose = require("mongoose");
 
+const NavItemSchema = new mongoose.Schema(
+  {
+    label: { type: String, required: true },
+    href: { type: String },
+    children: [{ type: mongoose.Schema.Types.Mixed }],
+  },
+  { _id: false }
+);
+
+NavItemSchema.add({ children: [NavItemSchema] });
+
 const AppSettingsSchema = new mongoose.Schema(
   {
     logo: {
@@ -33,6 +44,7 @@ const AppSettingsSchema = new mongoose.Schema(
       link: { type: String },
     },
 
+  // Deprecated: use navMenu instead
   megaMenu: [
     {
       title: { type: String, required: true },
@@ -44,6 +56,9 @@ const AppSettingsSchema = new mongoose.Schema(
       ],
     },
   ],
+
+  // New: full navbar configuration with nested items
+  navMenu: [NavItemSchema],
   },
   { timestamps: true }
 );
