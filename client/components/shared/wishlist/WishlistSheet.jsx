@@ -78,7 +78,7 @@ const WishlistSheet = ({ isOpen, onOpenChange, wishlistCount = 0 }) => {
           </div>
         ) : wishlistProducts.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
-            <Heart className="h-16 w-16 text-gray-300 mb-4" />
+            <Heart strokeWidth={2} className="h-16 w-16 text-gray-300 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               Your wishlist is empty
             </h3>

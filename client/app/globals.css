@@ -121,6 +121,22 @@
   }
 }
 
+@layer base {
+  /* Ensure all clickable elements show pointer cursor */
+  button:not(:disabled),
+  a[href],
+  summary,
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"],
+  [role="option"],
+  [role="tab"],
+  [role="link"],
+  [data-radix-collection-item],
+  select {
+    cursor: pointer;
+  }
+}
+
 .scrollbar-hide {
   overflow-y: scroll;
   scrollbar-width: none; /* Firefox */

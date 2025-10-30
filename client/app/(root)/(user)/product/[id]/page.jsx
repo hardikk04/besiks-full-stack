@@ -69,13 +69,9 @@ const page = () => {
 
   // Dynamic data from product
   const images = product?.images || ["/img/product.png"];
-  const colors = product?.colors || [
-    { name: "black", value: "#000000" },
-    { name: "blue", value: "#3B82F6" },
-    { name: "white", value: "#FFFFFF" },
-    { name: "navy", value: "#1E3A8A" },
-  ];
-  const sizes = product?.sizes || ["S", "M", "L", "XL"];
+  const colors = product?.colors ?? [];
+  const sizes = product?.sizes ?? [];
+  const hasVariants = (colors?.length || 0) > 0 || (sizes?.length || 0) > 0;
 
   const handleQuantityChange = (type) => {
     if (type === "increase") {
@@ -104,6 +100,9 @@ const page = () => {
     if (!product) return;
     await addToWishlist(product);
   };
+
+  const [shippingOpen, setShippingOpen] = useState(false);
+  const [returnsOpen, setReturnsOpen] = useState(false);
 
   // Loading state
   if (productsLoading) {
@@ -217,69 +216,71 @@ const page = () => {
               <h1 className="text-3xl font-bold text-gray-900">
                 {product.name}
               </h1>
-              <div className="flex items-center gap-4 mt-2">
-                <div className="flex items-center gap-2">
-                  {product.mrp && Number(product.mrp) > Number(product.price) && (
-                    <span className="text-lg text-gray-400 line-through">₹{product.mrp}</span>
-                  )}
-                  <span className="text-2xl font-semibold text-gray-900">₹{product.price}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm text-gray-600">
-                    {product.rating || 4.5} ratings
-                  </span>
-                </div>
+              <div className="flex items-center gap-2 mt-2">
+                {product.mrp && Number(product.mrp) > Number(product.price) && (
+                  <span className="text-lg text-gray-400 line-through">₹{product.mrp}</span>
+                )}
+                <span className="text-2xl font-semibold text-gray-900">₹{product.price}</span>
+              </div>
+              <div className="flex items-center gap-1 mt-2">
+                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                <span className="text-sm text-gray-600">
+                  {product.rating || 4.5} ratings
+                </span>
               </div>
             </div>
 
-            {/* Color Selector */}
-            {colors.length > 0 && (
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-gray-700">
-                  Choose your color
-                </label>
-                <div className="flex gap-3 py-4">
-                  {colors.map((color) => (
-                    <button
-                      key={color.name}
-                      onClick={() => setSelectedColor(color.name)}
-                      className={`w-8 h-8 rounded-md border-2 cursor-pointer ${
-                        selectedColor === color.name
-                          ? "ring-2"
-                          : "border-gray-300"
-                      }`}
-                      style={{ backgroundColor: color.value }}
-                    />
-                  ))}
+            {/* Variant Selectors (grouped to reduce spacing between color and size) */}
+            <div className="space-y-2">
+              {/* Color Selector */}
+              {colors.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Choose your color
+                  </label>
+                  <div className="flex gap-3 py-2">
+                    {colors.map((color) => (
+                      <button
+                        key={color.name}
+                        onClick={() => setSelectedColor(color.name)}
+                        className={`w-8 h-8 rounded-md border-2 cursor-pointer ${
+                          selectedColor === color.name
+                            ? "ring-2"
+                            : "border-gray-300"
+                        }`}
+                        style={{ backgroundColor: color.value }}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Size Selector */}
-            {sizes.length > 0 && (
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-gray-700">
-                  Choose your size
-                </label>
-                <div className="flex flex-wrap gap-3 py-2">
-                  {sizes.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => setSelectedSize(size)}
-                      aria-pressed={selectedSize === size}
-                      className={`min-w-10 px-3 h-8 rounded-sm border-2 text-sm font-medium cursor-pointer transition-colors ${
-                        selectedSize === size
-                          ? "border-gray-800 text-gray-900"
-                          : "border-gray-300 text-gray-700 hover:border-gray-400"
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
+              {/* Size Selector */}
+              {sizes.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Choose your size
+                  </label>
+                  <div className="flex flex-wrap gap-3 py-2">
+                    {sizes.map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setSelectedSize(size)}
+                        aria-pressed={selectedSize === size}
+                        className={`min-w-10 px-3 h-8 rounded-sm border-2 text-sm font-medium cursor-pointer transition-colors ${
+                          selectedSize === size
+                            ? "border-gray-800 text-gray-900"
+                            : "border-gray-300 text-gray-700 hover:border-gray-400"
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+            {/* Shipping/Returns will render below Product details when no variants */}
 
             {/* Stock Status */}
             <div className="flex items-center gap-2">
@@ -299,11 +300,11 @@ const page = () => {
 
             {/* Quantity Selector and Add to Cart */}
             <div className="flex items-center gap-4">
-              <div className="inline-flex items-center bg-gray-100 rounded-sm px-4 py-2">
+              <div className="inline-flex items-center bg-gray-100 rounded-sm px-4 h-12">
                 <span className="text-sm text-black mr-3">Quantity</span>
                 <button
                   onClick={() => handleQuantityChange("decrease")}
-                  className="text-gray-600 hover:text-gray-800 px-2 cursor-pointer"
+                  className={`px-2 ${quantity <= 1 ? "text-gray-400 cursor-not-allowed opacity-50" : "text-gray-600 hover:text-gray-800 cursor-pointer"}`}
                   disabled={quantity <= 1}
                 >
                   -
@@ -318,7 +319,7 @@ const page = () => {
               </div>
 
               <Button
-                className="flex-1 bg-[#174986] text-white py-3 rounded-sm cursor-pointer"
+                className="flex-1 bg-[#174986] text-white h-12 rounded-sm cursor-pointer"
                 onClick={handleAddToCart}
                 disabled={product.stock <= 0}
               >
@@ -330,7 +331,7 @@ const page = () => {
             <div className="grid grid-cols-2 gap-3">
               <Button
                 variant="outline"
-                className="flex items-center bg-[#E6E6E6] justify-center gap-2 rounded-sm cursor-pointer"
+                className="flex items-center bg-[#E6E6E6] justify-center gap-2 rounded-sm cursor-pointer h-12"
                 onClick={handleAddToWishlist}
               >
                 <Heart
@@ -344,34 +345,80 @@ const page = () => {
               </Button>
               <Button
                 variant="outline"
-                className="flex items-center bg-[#E6E6E6] justify-center gap-2 rounded-sm cursor-pointer"
+                className="flex items-center bg-[#E6E6E6] justify-center gap-2 rounded-sm cursor-pointer h-12"
               >
                 <Share className="w-4 h-4" />
                 Share
               </Button>
             </div>
 
-            {/* Product Details - Collapsible under actions */}
-            <Collapsible
-              open={detailsOpen}
-              onOpenChange={setDetailsOpen}
-              className="border rounded-sm"
-            >
-              <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium">
-                <span>Product details</span>
-                {detailsOpen ? (
-                  <ChevronUp className="w-4 h-4" />
-                ) : (
-                  <ChevronDown className="w-4 h-4" />
-                )}
-              </CollapsibleTrigger>
-              <CollapsibleContent className="px-4 pb-4 text-sm text-gray-700">
-                <p className="leading-relaxed">
-                  {product.description ||
-                    "No additional details available for this product."}
-                </p>
-              </CollapsibleContent>
-            </Collapsible>
+            {/* Product Details + Conditional Shipping/Returns grouped to tighten spacing */}
+            <div className="space-y-2">
+              <Collapsible
+                open={detailsOpen}
+                onOpenChange={setDetailsOpen}
+                className="border rounded-sm"
+              >
+                <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium">
+                  <span>Product details</span>
+                  {detailsOpen ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="px-4 pb-4 text-sm text-gray-700">
+                  <p className="leading-relaxed">
+                    {product.description ||
+                      "No additional details available for this product."}
+                  </p>
+                </CollapsibleContent>
+              </Collapsible>
+              {!hasVariants && (
+                <div className="space-y-2">
+                  <Collapsible
+                    open={shippingOpen}
+                    onOpenChange={setShippingOpen}
+                    className="border rounded-sm"
+                  >
+                    <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium">
+                      <span>Shipping</span>
+                      {shippingOpen ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="px-4 pb-4 text-sm text-gray-700">
+                      <p className="leading-relaxed">
+                        Orders ship within 1-2 business days. Standard delivery arrives in 3-6 business days depending on your location.
+                      </p>
+                    </CollapsibleContent>
+                  </Collapsible>
+
+                  <Collapsible
+                    open={returnsOpen}
+                    onOpenChange={setReturnsOpen}
+                    className="border rounded-sm"
+                  >
+                    <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium">
+                      <span>Returns</span>
+                      {returnsOpen ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="px-4 pb-4 text-sm text-gray-700">
+                      <p className="leading-relaxed">
+                        Hassle-free returns within 30 days of delivery. Items must be unused and in original packaging.
+                      </p>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              )}
+            </div>
+            
           </div>
         </div>
       </section>
