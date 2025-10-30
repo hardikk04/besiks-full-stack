@@ -413,11 +413,11 @@ export function CategoriesTable() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      {/* <Link href={`/admin/categories/edit/${category._id}`}>
+                      <Link href={`/admin/categories/edit/${category._id}`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <IconEdit className="h-4 w-4" />
                         </Button>
-                      </Link> */}
+                      </Link>
                       <Button
                         variant="ghost"
                         size="icon"

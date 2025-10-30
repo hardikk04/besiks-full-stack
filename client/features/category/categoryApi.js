@@ -12,6 +12,10 @@ export const categoryApi = createApi({
       query: () => "/",
       providesTags: ["Category"],
     }),
+    getCategoryById: builder.query({
+      query: (id) => `/${id}`,
+      providesTags: ["Category"],
+    }),
     getFeaturedCategories: builder.query({
       query: () => "/featured",
       providesTags: ["Category"],
@@ -20,6 +24,14 @@ export const categoryApi = createApi({
       query: (categoryInput) => ({
         url: "/",
         method: "POST", 
+        body: categoryInput,
+      }),
+      invalidatesTags: ["Category"],
+    }),
+    updateCategory: builder.mutation({
+      query: ({ id, categoryInput }) => ({
+        url: `/${id}`,
+        method: "PUT",
         body: categoryInput,
       }),
       invalidatesTags: ["Category"],
@@ -53,6 +65,8 @@ export const {
   useGetAllCategoriesQuery,
   useGetFeaturedCategoriesQuery,
   useDeleteCategoryMutation,
+  useGetCategoryByIdQuery,
+  useUpdateCategoryMutation,
   useUpdateIsActiveMutation,
   useSearchCategoryQuery,
   useGetProductsByCategoryQuery,
