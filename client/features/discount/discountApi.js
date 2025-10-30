@@ -46,6 +46,13 @@ export const discountApi = createApi({
       }),
       invalidatesTags: ["Discount"],
     }),
+    validateCoupon: builder.mutation({
+      query: ({ code, orderAmount }) => ({
+        url: `/validate`,
+        method: "POST",
+        body: { code, orderAmount },
+      }),
+    }),
   }),
 });
 
@@ -56,4 +63,5 @@ export const {
   useDeleteCouponMutation,
   useUpdateIsActiveMutation,
   useUpdateDiscountMutation,
+  useValidateCouponMutation,
 } = discountApi;

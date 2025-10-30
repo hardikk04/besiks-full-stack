@@ -15,6 +15,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/hooks/useCart";
 import { useConfirmPaymentMutation } from "@/features/orders/orderApi";
+import { useValidateCouponMutation } from "@/features/discount/discountApi";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
 
@@ -24,6 +25,7 @@ const CheckoutPage = () => {
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
   
   const [confirmPayment, { isLoading: isConfirmingPayment }] = useConfirmPaymentMutation();
+  const [validateCoupon, { isLoading: isValidatingCoupon }] = useValidateCouponMutation();
   
   const [shippingAddress, setShippingAddress] = useState({
     street: "",
@@ -36,6 +38,7 @@ const CheckoutPage = () => {
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [couponCode, setCouponCode] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState(null); // { code, discountAmount }
   const [createdOrder, setCreatedOrder] = useState(null);
 
   // Redirect if not authenticated
@@ -74,17 +77,44 @@ const CheckoutPage = () => {
   };
 
   const calculateTotals = () => {
-    const itemsPrice = cart.totalPrice || 0;
-    const taxPrice = itemsPrice * 0.1; // 10% tax
-    const shippingPrice = itemsPrice > 100 ? 0 : 10; // Free shipping over $100
-    const totalPrice = itemsPrice + taxPrice + shippingPrice;
+    // Subtotal
+    const itemsPrice = (cart.items || []).reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    return {
-      itemsPrice,
-      taxPrice,
-      shippingPrice,
-      totalPrice
-    };
+    // Apply coupon discount on subtotal
+    const discountAmount = appliedCoupon?.discountAmount || 0;
+    const discountedSubtotal = Math.max(0, itemsPrice - discountAmount);
+
+    // Tax per product using its tax percent string (e.g., "18")
+    const taxPrice = (cart.items || []).reduce((sum, item) => {
+      const taxPercent = parseFloat(item.product?.tax ?? "0");
+      const lineAmount = item.price * item.quantity;
+      // proportionally reduce tax base if coupon applied
+      const proportion = itemsPrice > 0 ? lineAmount / itemsPrice : 0;
+      const lineDiscountedBase = discountedSubtotal * proportion;
+      return sum + (lineDiscountedBase * (isNaN(taxPercent) ? 0 : taxPercent) / 100);
+    }, 0);
+
+    const shippingPrice = discountedSubtotal > 100 ? 0 : 10;
+    const totalPrice = discountedSubtotal + taxPrice + shippingPrice;
+
+    return { itemsPrice, discountAmount, discountedSubtotal, taxPrice, shippingPrice, totalPrice };
+  };
+
+  const onApplyCoupon = async () => {
+    try {
+      if (!couponCode.trim()) {
+        toast.error("Enter a coupon code");
+        return;
+      }
+      const subtotal = (cart.items || []).reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const res = await validateCoupon({ code: couponCode.trim(), orderAmount: subtotal }).unwrap();
+      const discountAmount = res?.data?.discountAmount || 0;
+      setAppliedCoupon({ code: couponCode.trim().toUpperCase(), discountAmount });
+      toast.success("Coupon applied");
+    } catch (err) {
+      setAppliedCoupon(null);
+      toast.error(err?.data?.message || "Invalid coupon");
+    }
   };
 
   const handleCheckout = async () => {
@@ -112,8 +142,9 @@ const CheckoutPage = () => {
         orderItems,
         shippingAddress,
         paymentMethod,
-        couponCode: couponCode || undefined,
+        couponCode: appliedCoupon?.code || (couponCode || undefined),
         itemsPrice: totals.itemsPrice,
+        discount: totals.discountAmount || 0,
         taxPrice: totals.taxPrice,
         shippingPrice: totals.shippingPrice,
         totalPrice: totals.totalPrice
@@ -264,7 +295,8 @@ const CheckoutPage = () => {
             </CardContent>
           </Card>
 
-          {/* Coupon Code */}
+        {/* Coupon Code */
+        }
           <Card>
             <CardHeader>
               <CardTitle>Coupon Code</CardTitle>
@@ -276,8 +308,13 @@ const CheckoutPage = () => {
                   onChange={(e) => setCouponCode(e.target.value)}
                   placeholder="Enter coupon code"
                 />
-                <Button variant="outline">Apply</Button>
+              <Button variant="outline" onClick={onApplyCoupon} disabled={isValidatingCoupon}>
+                {isValidatingCoupon ? "Applying..." : "Apply"}
+              </Button>
               </div>
+            {appliedCoupon && (
+              <div className="mt-2 text-sm text-green-700">Applied: {appliedCoupon.code} − Rs. {appliedCoupon.discountAmount.toLocaleString()}</div>
+            )}
             </CardContent>
           </Card>
         </div>
@@ -326,8 +363,14 @@ const CheckoutPage = () => {
                 <span>Subtotal ({cart.items.length} items)</span>
                 <span>Rs. {totals.itemsPrice.toLocaleString()}</span>
               </div>
+              {appliedCoupon?.discountAmount ? (
+                <div className="flex justify-between">
+                  <span>Discount ({appliedCoupon.code})</span>
+                  <span className="text-green-700">− Rs. {totals.discountAmount.toLocaleString()}</span>
+                </div>
+              ) : null}
               <div className="flex justify-between">
-                <span>Tax (10%)</span>
+                <span>Tax</span>
                 <span>Rs. {totals.taxPrice.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
