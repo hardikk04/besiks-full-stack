@@ -19,7 +19,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { Trash2, Copy } from "lucide-react";
+import { Trash2, Copy, Edit } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   useDeleteCouponMutation,
@@ -309,6 +310,11 @@ export function CouponsTable() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
+                      <Link href={`/admin/discount/edit/${coupon._id}`}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </Link>
                       <Button
                         variant="ghost"
                         size="icon"

@@ -12,10 +12,22 @@ export const discountApi = createApi({
       query: () => "/",
       providesTags: ["Discount"],
     }),
+    getCouponById: builder.query({
+      query: (id) => `/${id}`,
+      providesTags: ["Discount"],
+    }),
     createDiscount: builder.mutation({
       query: (discountInput) => ({
         url: "/",
         method: "POST",
+        body: discountInput,
+      }),
+      invalidatesTags: ["Discount"],
+    }),
+    updateDiscount: builder.mutation({
+      query: ({ id, discountInput }) => ({
+        url: `/${id}`,
+        method: "PUT",
         body: discountInput,
       }),
       invalidatesTags: ["Discount"],
@@ -40,6 +52,8 @@ export const discountApi = createApi({
 export const {
   useCreateDiscountMutation,
   useGetAllCouponQuery,
+  useGetCouponByIdQuery,
   useDeleteCouponMutation,
   useUpdateIsActiveMutation,
+  useUpdateDiscountMutation,
 } = discountApi;
