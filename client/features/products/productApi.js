@@ -12,6 +12,10 @@ export const productApi = createApi({
       query: () => "/",
       providesTags: ["Products"],
     }),
+    getProductById: builder.query({
+      query: (productId) => `/${productId}`,
+      providesTags: ["Products"],
+    }),
     getNewProducts: builder.query({
       query: (limit = 10) => `/new?limit=${limit}`,
       providesTags: ["Products"],
@@ -28,6 +32,14 @@ export const productApi = createApi({
       query: (productInput) => ({
         url: "/",
         method: "POST",
+        body: productInput,
+      }),
+      invalidatesTags: ["Products"],
+    }),
+    updateProduct: builder.mutation({
+      query: ({ id, productInput }) => ({
+        url: `/${id}`,
+        method: "PUT",
         body: productInput,
       }),
       invalidatesTags: ["Products"],
@@ -55,10 +67,12 @@ export const productApi = createApi({
 export const {
   useCreateProductMutation,
   useGetAllProductsQuery,
+  useGetProductByIdQuery,
   useGetNewProductsQuery,
   useGetRecentPurchasesQuery,
   useGetBestSellersQuery,
   useDeleteProductMutation,
+  useUpdateProductMutation,
   useUpdateIsActiveMutation,
   useSearchProductQuery,
 } = productApi;

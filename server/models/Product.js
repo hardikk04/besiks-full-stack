@@ -17,6 +17,10 @@ const productSchema = new mongoose.Schema({
     required: [true, 'Product price is required'],
     min: [0, 'Price cannot be negative']
   },
+  mrp: {
+    type: Number,
+    min: [0, 'MRP cannot be negative']
+  },
   comparePrice: {
     type: Number,
     min: [0, 'Compare price cannot be negative']
@@ -49,6 +53,11 @@ const productSchema = new mongoose.Schema({
     required: [true, 'Stock quantity is required'],
     min: [0, 'Stock cannot be negative'],
     default: 0
+  },
+  tax: {
+    type: String,
+    trim: true,
+    default: "0"
   },
   weight: {
     type: Number,

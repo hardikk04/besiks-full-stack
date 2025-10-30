@@ -25,9 +25,10 @@ export function CustomersTable() {
     useDeleteCustomerMutation();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Filter customers based on search query
+  // Normalize API response to an array and filter based on search query
+  const customers = Array.isArray(data) ? data : data?.data ?? [];
   const filteredCustomers =
-    data?.filter(
+    customers.filter(
       (customer) =>
         customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -85,7 +86,7 @@ export function CustomersTable() {
         </div>
         {searchQuery && (
           <div className="text-sm text-muted-foreground">
-            {filteredCustomers.length} of {data?.length || 0} customers
+            {filteredCustomers.length} of {customers.length} customers
           </div>
         )}
       </div>

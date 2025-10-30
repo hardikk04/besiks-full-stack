@@ -280,6 +280,8 @@ export function ProductsTable() {
               <TableHead>SKU</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Price</TableHead>
+              <TableHead>MRP</TableHead>
+              <TableHead>Tax</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-32">Actions</TableHead>
@@ -323,6 +325,8 @@ export function ProductsTable() {
                 </TableCell>
                 <TableCell>{product.categories[0]?.name || "N/A"}</TableCell>
                 <TableCell>{product.price}</TableCell>
+                <TableCell>{product.mrp ?? "-"}</TableCell>
+                <TableCell>{product.tax ?? "-"}</TableCell>
                 <TableCell>{product.stock}</TableCell>
                 <TableCell>
                   <div className="flex items-center space-x-2">
@@ -338,11 +342,11 @@ export function ProductsTable() {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    {/* <Link href={"/admin/products/edit/asdfsad"}>
+                    <Link href={`/admin/products/edit/${product._id}`}>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <IconEdit className="h-4 w-4" />
                       </Button>
-                    </Link> */}
+                    </Link>
                     <Button
                       onClick={() => handleDelete(product._id)}
                       variant="ghost"

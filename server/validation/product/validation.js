@@ -41,6 +41,11 @@ const createProductValidation = z.object({
     .number({ invalid_type_error: "Price must be a number" })
     .min(0, "Price cannot be negative"),
 
+  mrp: z
+    .number({ invalid_type_error: "MRP must be a number" })
+    .min(0, "MRP cannot be negative")
+    .optional(),
+
   comparePrice: z
     .number({ invalid_type_error: "Compare price must be a number" })
     .min(0, "Compare price cannot be negative")
@@ -72,6 +77,10 @@ const createProductValidation = z.object({
     .number({ invalid_type_error: "Stock must be a number" })
     .min(0, "Stock cannot be negative")
     .default(0),
+
+  tax: z
+    .string()
+    .optional(),
 
   weight: z
     .number({ invalid_type_error: "Weight must be a number" })

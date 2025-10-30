@@ -218,9 +218,12 @@ const page = () => {
                 {product.name}
               </h1>
               <div className="flex items-center gap-4 mt-2">
-                <span className="text-2xl font-semibold text-gray-900">
-                  ₹{product.price}
-                </span>
+                <div className="flex items-center gap-2">
+                  {product.mrp && Number(product.mrp) > Number(product.price) && (
+                    <span className="text-lg text-gray-400 line-through">₹{product.mrp}</span>
+                  )}
+                  <span className="text-2xl font-semibold text-gray-900">₹{product.price}</span>
+                </div>
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                   <span className="text-sm text-gray-600">

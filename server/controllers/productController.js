@@ -198,6 +198,30 @@ const updateProduct = async (req, res) => {
         .json({ success: false, message: "Product not found" });
     }
 
+    // Normalize tags: accept array of tag names or ObjectIds; convert names to Tag ids
+    if (Array.isArray(req.body.tags)) {
+      const normalizedTagIds = [];
+      for (const tagInput of req.body.tags) {
+        try {
+          // If it's a valid ObjectId, keep as is
+          if (typeof tagInput === "string" && tagInput.match(/^[a-fA-F0-9]{24}$/)) {
+            normalizedTagIds.push(tagInput);
+            continue;
+          }
+
+          // Otherwise treat as a name
+          let tagDoc = await Tag.findOne({ name: tagInput });
+          if (!tagDoc) {
+            tagDoc = await Tag.create({ name: String(tagInput) });
+          }
+          normalizedTagIds.push(tagDoc._id);
+        } catch (_) {
+          // Skip malformed tag inputs silently
+        }
+      }
+      req.body.tags = normalizedTagIds;
+    }
+
     product = await Product.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },

@@ -43,7 +43,12 @@ const ProductCard = ({ product }) => {
       </div>
       <div className="product-info py-4 flex flex-col gap-2 flex-1">
         <h3 className="text-base sm:text-md font-semibold leading-tight h-5 flex line-clamp-1">{product.name || "Unnamed Product"}</h3>
-        <p className="text-gray-600 text-sm sm:text-base">Price: ₹{product.price || 0}</p>
+        <div className="text-sm sm:text-base flex items-center gap-2">
+          {product.mrp && Number(product.mrp) > Number(product.price) && (
+            <span className="text-gray-400 line-through">₹{product.mrp}</span>
+          )}
+          <span className="text-gray-900 font-semibold">₹{product.price || 0}</span>
+        </div>
         <div className="mt-auto">
           <Button 
             className="w-full bg-[#174986] hover:bg-[#174986]/90 text-sm sm:text-base cursor-pointer"
