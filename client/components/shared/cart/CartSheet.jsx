@@ -59,7 +59,7 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
           size="icon"
           className="text-gray-600 hover:text-blue-600 relative cursor-pointer"
         >
-          <ShoppingCart strokeWidth={2.5} className="h-5 w-5" />
+          <ShoppingCart strokeWidth={2.5} className="!h-5 !w-5" />
           {isClient && totalItems > 0 && (
             <Badge
               variant="destructive"
