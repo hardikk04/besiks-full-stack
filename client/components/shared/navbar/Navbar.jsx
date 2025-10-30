@@ -228,7 +228,7 @@ const Navbar = () => {
                   size="icon"
                   className="text-gray-600 hover:text-blue-600 cursor-pointer"
                 >
-                  <User strokeWidth={2.5} className="!h-5 !w-5" />
+                  <User strokeWidth={2} className="!h-5 !w-5" />
                   <span className="sr-only">User profile</span>
                 </Button>
               </DropdownMenuTrigger>

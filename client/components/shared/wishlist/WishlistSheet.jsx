@@ -45,7 +45,7 @@ const WishlistSheet = ({ isOpen, onOpenChange, wishlistCount = 0 }) => {
           size="icon"
           className="text-gray-600 hover:text-blue-600 relative cursor-pointer"
         >
-          <Heart strokeWidth={2.5} className="!h-5 !w-5 font-bold" />
+          <Heart strokeWidth={2} className="!h-5 !w-5" />
           {isClient && totalItems > 0 && (
             <Badge
               variant="destructive"
