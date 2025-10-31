@@ -113,7 +113,7 @@ app.use("/v1/api/uploads", uploadRoutes);
 app.get("/health", (req, res) => {
   res
     .status(200)
-    .json({ status: "OK", success: true, message: "Server is running" });
+    .json({ status: "OKK", success: true, message: "Server is running" });
 });
 
 // Error handling middleware

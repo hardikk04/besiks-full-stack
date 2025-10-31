@@ -122,7 +122,7 @@ const AddProductPage = () => {
       return;
     }
 
-    toast.loading("Uploading images to Cloudinary...");
+    toast.loading("Uploading images...");
 
     try {
       const uploadPromises = files.map(async (file) => {
@@ -150,12 +150,12 @@ const AddProductPage = () => {
       setImages((prev) => [...prev, ...uploadedImages]);
       toast.dismiss();
       toast.success(
-        `${uploadedImages.length} image(s) uploaded successfully to Cloudinary`
+        `${uploadedImages.length} image(s) uploaded successfully`
       );
     } catch (error) {
       console.error("Error uploading images:", error);
       toast.dismiss();
-      toast.error("Failed to upload images to Cloudinary");
+      toast.error("Failed to upload images. Please try again.");
     }
   };
 
@@ -222,7 +222,7 @@ const AddProductPage = () => {
       sku: formData.sku,
       isActive: isActive,
 
-      // Images - Cloudinary URLs (already uploaded)
+      // Images - Server URLs (already uploaded)
       images: images.map((img) => img.url),
 
       // Variants
