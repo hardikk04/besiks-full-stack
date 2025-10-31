@@ -27,7 +27,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
-import { useGetMeQuery } from "@/features/customer/customerApi";
+import { useSelector } from "react-redux";
 
 const adminData = {
   user: {
@@ -93,7 +93,8 @@ const adminData = {
 };
 
 export function AdminSidebar({ ...props }) {
-  const { data: userData, isLoading: isUserDataLoading } = useGetMeQuery();
+  // Get user from Redux auth state (stored after admin login)
+  const userData = useSelector((state) => state.auth?.user);
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>

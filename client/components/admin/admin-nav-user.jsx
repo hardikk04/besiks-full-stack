@@ -1,6 +1,7 @@
 "use client";
 
 import { IconLogout } from "@tabler/icons-react";
+import { useState, useEffect } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -27,6 +28,12 @@ import { useRouter } from "next/navigation";
 
 export function AdminNavUser({ user }) {
   const { isMobile } = useSidebar();
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch by only showing user data after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [triggerLogout, { isFetching }] = useLazyLogoutQuery();
   const dispatch = useDispatch();
@@ -61,8 +68,12 @@ export function AdminNavUser({ user }) {
                 <AvatarFallback className="rounded-lg">AD</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{user?.name}</span>
-                <span className="truncate text-xs">{user?.email}</span>
+                <span className="truncate font-semibold">
+                  {mounted ? user?.name || "" : ""}
+                </span>
+                <span className="truncate text-xs">
+                  {mounted ? user?.email || "" : ""}
+                </span>
               </div>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -82,8 +93,12 @@ export function AdminNavUser({ user }) {
                   <AvatarFallback className="rounded-lg">AD</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">{user?.name}</span>
-                  <span className="truncate text-xs">{user?.email}</span>
+                  <span className="truncate font-semibold">
+                    {mounted ? user?.name || "" : ""}
+                  </span>
+                  <span className="truncate text-xs">
+                    {mounted ? user?.email || "" : ""}
+                  </span>
                 </div>
               </div>
             </DropdownMenuLabel>
