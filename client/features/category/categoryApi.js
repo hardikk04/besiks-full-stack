@@ -54,7 +54,11 @@ export const categoryApi = createApi({
       query: (searchQuery) => `/search?search=${searchQuery}`,
     }),
     getProductsByCategory: builder.query({
-      query: (categoryId) => `/${categoryId}/products`,
+      query: (categoryIdOrSlug) => `/${categoryIdOrSlug}/products`,
+      providesTags: ["Category"],
+    }),
+    getCategoryBySlug: builder.query({
+      query: (slug) => `/slug/${slug}`,
       providesTags: ["Category"],
     }),
   }),
@@ -66,6 +70,7 @@ export const {
   useGetFeaturedCategoriesQuery,
   useDeleteCategoryMutation,
   useGetCategoryByIdQuery,
+  useGetCategoryBySlugQuery,
   useUpdateCategoryMutation,
   useUpdateIsActiveMutation,
   useSearchCategoryQuery,

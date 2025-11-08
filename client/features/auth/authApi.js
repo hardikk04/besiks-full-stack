@@ -21,8 +21,11 @@ export const authApi = createApi({
         body: loginInput,
       }),
     }),
-    logout: builder.query({
+    adminLogout: builder.query({
       query: () => "admin/logout", // 👈 GET method
+    }),
+    userLogout: builder.query({
+      query: () => "admin/logout", // Same endpoint works for both admin and user
     }),
   }),
 });
@@ -30,5 +33,6 @@ export const authApi = createApi({
 export const {
   useAdminLoginMutation,
   useUserLoginMutation,
-  useLazyLogoutQuery,
+  useLazyAdminLogoutQuery,
+  useLazyUserLogoutQuery,
 } = authApi;

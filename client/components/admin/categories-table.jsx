@@ -19,6 +19,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { IconEdit, IconTrash, IconSearch } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -28,7 +33,6 @@ import {
   useUpdateIsActiveMutation,
   useSearchCategoryQuery,
 } from "@/features/category/categoryApi";
-import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import useDebounce from "@/hooks/useDebounce";
 
@@ -142,18 +146,16 @@ export function CategoriesTable() {
   const handleDelete = async (categoryId) => {
     try {
       await deleteCategory(categoryId).unwrap();
-      toast.success("Category deleted successfully");
     } catch (err) {
-      toast.error(err?.data?.message || "Failed to delete category");
+      // Error handling without toast
     }
   };
 
   const handleStatusChange = async (categoryId) => {
     try {
       await updateIsActive(categoryId).unwrap();
-      toast.success("Category featured status updated");
     } catch (err) {
-      toast.error(err?.data?.message || "Failed to update featured status");
+      // Error handling without toast
     }
   };
 
@@ -184,12 +186,9 @@ export function CategoriesTable() {
       await Promise.all(
         selectedCategories.map((id) => deleteCategory(id).unwrap())
       );
-      toast.success(
-        `${selectedCategories.length} categories deleted successfully`
-      );
       setSelectedCategories([]);
     } catch (err) {
-      toast.error("Failed to delete some categories");
+      // Error handling without toast
     }
   };
 
@@ -209,13 +208,8 @@ export function CategoriesTable() {
     });
 
     if (categoriesToUpdate.length === 0) {
-      const statusText = targetIsActive ? "active" : "draft";
-      toast.info(`All selected categories are already ${statusText}`);
       return;
     }
-
-    const statusText = targetIsActive ? "activated" : "set to draft";
-    const skippedCount = selectedCategories.length - categoriesToUpdate.length;
 
     try {
       // Update only categories that need status change
@@ -223,18 +217,9 @@ export function CategoriesTable() {
         categoriesToUpdate.map((id) => updateIsActive(id).unwrap())
       );
 
-      let message = `${categoriesToUpdate.length} categories ${statusText} successfully`;
-      if (skippedCount > 0) {
-        const currentStatusText = targetIsActive ? "active" : "draft";
-        message += ` (${skippedCount} already ${currentStatusText})`;
-      }
-
-      toast.success(message);
       setSelectedCategories([]);
     } catch (err) {
-      toast.error(
-        `Failed to ${statusText.replace("set to", "set")} some categories`
-      );
+      // Error handling without toast
     }
   };
 
@@ -286,7 +271,7 @@ export function CategoriesTable() {
           <IconSearch className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search by category name or description..."
+            placeholder="Search by category name"
             className="pl-8"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -353,7 +338,6 @@ export function CategoriesTable() {
                 />
               </TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Description</TableHead>
               <TableHead>Parent</TableHead>
               <TableHead>Sort Order</TableHead>
               <TableHead>Status (Featured)</TableHead>
@@ -372,27 +356,38 @@ export function CategoriesTable() {
                       }
                     />
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
+                  <TableCell className="max-w-[200px]">
+                    <div className="flex items-center gap-3 overflow-hidden">
                       <img
                         src={category.image || "/placeholder.svg"}
                         alt={category.name}
-                        className="h-10 w-10 rounded-md object-cover"
+                        className="h-10 w-10 rounded-md object-cover flex-shrink-0"
                       />
-                      <div>
-                        <span className="font-medium">{category.name}</span>
+                      <div className="min-w-0 flex-1 overflow-hidden">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="font-medium truncate block cursor-default">{category.name}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{category.name}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-muted-foreground">
-                      {category.description || "No description"}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">
-                      {getParentCategoryName(category.parent)}
-                    </span>
+                  <TableCell className="max-w-[150px]">
+                    <div className="overflow-hidden">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-sm truncate block cursor-default">
+                            {getParentCategoryName(category.parent)}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{getParentCategoryName(category.parent)}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <span className="font-mono text-sm">
@@ -433,7 +428,7 @@ export function CategoriesTable() {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={6}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {debouncedSearchQuery.trim()

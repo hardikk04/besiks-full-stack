@@ -13,7 +13,11 @@ export const productApi = createApi({
       providesTags: ["Products"],
     }),
     getProductById: builder.query({
-      query: (productId) => `/${productId}`,
+      query: (productIdOrSlug) => `/${productIdOrSlug}`,
+      providesTags: ["Products"],
+    }),
+    getProductBySlug: builder.query({
+      query: (slug) => `/slug/${slug}`,
       providesTags: ["Products"],
     }),
     getNewProducts: builder.query({
@@ -59,7 +63,11 @@ export const productApi = createApi({
       invalidatesTags: ["Products"],
     }),
     searchProduct: builder.query({
-      query: (searchQuery) => `/search?query=${searchQuery}`,
+      query: (searchQuery) => `/search?query=${encodeURIComponent(searchQuery)}`,
+    }),
+    getProductsByCategorySlug: builder.query({
+      query: (slug) => `/category/${slug}`,
+      providesTags: ["Products"],
     }),
   }),
 });
@@ -68,6 +76,7 @@ export const {
   useCreateProductMutation,
   useGetAllProductsQuery,
   useGetProductByIdQuery,
+  useGetProductBySlugQuery,
   useGetNewProductsQuery,
   useGetRecentPurchasesQuery,
   useGetBestSellersQuery,
@@ -75,4 +84,5 @@ export const {
   useUpdateProductMutation,
   useUpdateIsActiveMutation,
   useSearchProductQuery,
+  useGetProductsByCategorySlugQuery,
 } = productApi;

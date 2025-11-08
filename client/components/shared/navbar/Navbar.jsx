@@ -14,7 +14,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, Search, Heart, User, ChevronDown, Package, LogOut } from "lucide-react";
+import { Menu, Search, Heart, User, ChevronDown, ChevronUp, Package, LogOut } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import CartSheet from "@/components/shared/cart/CartSheet";
 import WishlistSheet from "@/components/shared/wishlist/WishlistSheet";
 import SearchResults from "@/components/shared/search/SearchResults";
@@ -24,6 +29,7 @@ import { useCartContext } from "@/components/providers/CartProvider";
 import { Badge } from "@/components/ui/badge";
 import { useSelector, useDispatch } from "react-redux";
 import { logout } from "@/features/auth/authSlice";
+import { useLazyUserLogoutQuery } from "@/features/auth/authApi";
 import { toast } from "sonner";
 
 // pulled dynamically from app settings
@@ -34,9 +40,11 @@ const Navbar = () => {
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [expandedMenuItems, setExpandedMenuItems] = useState({});
   const megaMenuCloseTimeout = useRef(null);
   const { data: settingsData } = useGetSettingsQuery();
   const navMenu = settingsData?.data?.navMenu || [];
+  const logoUrl = settingsData?.data?.logo || "/img/brand.png";
   
   // Get cart context and cart/wishlist counts
   const { isCartOpen, setIsCartOpen } = useCartContext();
@@ -45,6 +53,7 @@ const Navbar = () => {
   const dispatch = useDispatch();
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
   const user = useSelector((state) => state.auth.user);
+  const [logoutUser] = useLazyUserLogoutQuery();
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -65,11 +74,21 @@ const Navbar = () => {
     }, 200);
   };
 
-  const handleLogout = () => {
-    dispatch(logout());
-    toast.success("Logged out successfully");
-    // Optionally redirect to home page
-    window.location.href = "/";
+  const handleLogout = async () => {
+    try {
+      // Call API to clear cookies on server
+      await logoutUser().unwrap();
+      // Clear local storage and Redux state
+      dispatch(logout());
+      toast.success("Logged out successfully");
+      // Redirect to home page
+      window.location.href = "/";
+    } catch (error) {
+      // Even if API call fails, clear local state
+      dispatch(logout());
+      toast.success("Logged out successfully");
+      window.location.href = "/";
+    }
   };
 
   const closeSearchResults = () => {
@@ -102,6 +121,14 @@ const Navbar = () => {
     };
   }, []);
 
+  // Toggle mobile menu item expansion
+  const toggleMenuItem = (itemKey) => {
+    setExpandedMenuItems((prev) => ({
+      ...prev,
+      [itemKey]: !prev[itemKey],
+    }));
+  };
+
   // Render nested lists for children beyond the first column level
   const renderNestedList = (children) => {
     if (!Array.isArray(children) || children.length === 0) return null;
@@ -123,15 +150,109 @@ const Navbar = () => {
     );
   };
 
+  // Render mobile menu with collapsible items
+  const renderMobileMenuItems = (items, level = 0) => {
+    return items.map((item, index) => {
+      const itemKey = `${level}-${index}-${item.label}`;
+      const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+      const isExpanded = expandedMenuItems[itemKey];
+
+      return (
+        <div key={itemKey} className={level === 0 ? "border-b border-gray-200 pb-3 mb-3 last:border-b-0 last:pb-0 last:mb-0" : ""}>
+          {hasChildren ? (
+            <Collapsible open={isExpanded} onOpenChange={() => toggleMenuItem(itemKey)}>
+              <CollapsibleTrigger className="w-full flex items-center justify-between py-2 px-1 text-base font-medium text-gray-900 hover:text-blue-600 transition-colors">
+                <span>{item.label}</span>
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4 text-gray-500" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2 pl-4 space-y-2">
+                <Link
+                  href={item.href || "#"}
+                  className="block py-1.5 text-sm text-gray-700 hover:text-blue-600 transition-colors"
+                  onClick={() => setIsOpen(false)}
+                >
+                  {item.label} (All)
+                </Link>
+                {item.children.map((child) => {
+                  const childKey = `${level + 1}-${index}-${child.label}`;
+                  const hasGrandChildren = Array.isArray(child.children) && child.children.length > 0;
+                  
+                  return (
+                    <div key={childKey}>
+                      {hasGrandChildren ? (
+                        <Collapsible 
+                          open={expandedMenuItems[childKey]} 
+                          onOpenChange={() => toggleMenuItem(childKey)}
+                        >
+                          <CollapsibleTrigger className="w-full flex items-center justify-between py-1.5 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors">
+                            <span>{child.label}</span>
+                            {expandedMenuItems[childKey] ? (
+                              <ChevronUp className="h-3.5 w-3.5 text-gray-500" />
+                            ) : (
+                              <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
+                            )}
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="pt-1 pl-4 space-y-1">
+                            <Link
+                              href={child.href || "#"}
+                              className="block py-1 text-xs text-gray-600 hover:text-blue-600 transition-colors"
+                              onClick={() => setIsOpen(false)}
+                            >
+                              {child.label} (All)
+                            </Link>
+                            {child.children.map((grandchild) => (
+                              <Link
+                                key={grandchild.label}
+                                href={grandchild.href || "#"}
+                                className="block py-1 text-xs text-gray-600 hover:text-blue-600 transition-colors"
+                                onClick={() => setIsOpen(false)}
+                              >
+                                {grandchild.label}
+                              </Link>
+                            ))}
+                          </CollapsibleContent>
+                        </Collapsible>
+                      ) : (
+                        <Link
+                          href={child.href || "#"}
+                          className="block py-1.5 text-sm text-gray-700 hover:text-blue-600 transition-colors"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          {child.label}
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })}
+              </CollapsibleContent>
+            </Collapsible>
+          ) : (
+            <Link
+              href={item.href || "#"}
+              className="block py-2 px-1 text-base font-medium text-gray-900 hover:text-blue-600 transition-colors"
+              onClick={() => setIsOpen(false)}
+            >
+              {item.label}
+            </Link>
+          )}
+        </div>
+      );
+    });
+  };
+
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-white">
       <div className="container mx-auto px-4 sm:px-6 lg:px-16">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-16">
+          <div className="flex items-center md:gap-16 gap-4">
             <Link href="/" className="flex items-center">
               <Image
-                src="/img/brand.png"
+                src={logoUrl}
                 alt="Besiks"
                 height={100}
                 width={100}
@@ -191,7 +312,7 @@ const Navbar = () => {
           {/* Navigation Links - Center */}
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             {/* Search Bar */}
             <div className="hidden md:flex items-center">
               <div className="relative">
@@ -273,75 +394,28 @@ const Navbar = () => {
 
             {/* Mobile menu button */}
             <div className="md:hidden">
-              <Sheet open={isOpen} onOpenChange={setIsOpen}>
+              <Sheet open={isOpen} onOpenChange={(open) => {
+                setIsOpen(open);
+                if (!open) {
+                  // Reset expanded items when menu closes
+                  setExpandedMenuItems({});
+                }
+              }}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Menu className="h-5 w-5" />
+                  <Button variant="ghost" size="icon" className="h-9 w-9">
+                    <Menu className="!h-5 !w-5" />
                     <span className="sr-only">Open menu</span>
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-                  <div className="flex flex-col space-y-4 mt-8">
-                    {navMenu.map((item) => (
-                      <div key={item.label} className="space-y-2">
-                        <Link
-                          href={item.href || "#"}
-                          className="text-lg font-medium text-gray-900 hover:text-blue-600 transition-colors"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          {item.label}
-                        </Link>
-                        {Array.isArray(item.children) && item.children.length > 0 && (
-                          <div className="pl-3 border-l space-y-1">
-                            {item.children.map((c) => (
-                              <div key={c.label} className="space-y-1">
-                                <Link
-                                  href={c.href || "#"}
-                                  className="text-gray-700 hover:text-blue-600"
-                                  onClick={() => setIsOpen(false)}
-                                >
-                                  {c.label}
-                                </Link>
-                                {Array.isArray(c.children) && c.children.length > 0 && (
-                                  <div className="pl-3 border-l space-y-1">
-                                    {c.children.map((g) => (
-                                      <Link
-                                        key={g.label}
-                                        href={g.href || "#"}
-                                        className="text-sm text-gray-600 hover:text-blue-600"
-                                        onClick={() => setIsOpen(false)}
-                                      >
-                                        {g.label}
-                                      </Link>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                <SheetContent side="right" className="w-[80vw] sm:w-[400px] overflow-y-auto">
+                  <div className="flex flex-col mt-6">
+                    {navMenu.length > 0 ? (
+                      renderMobileMenuItems(navMenu)
+                    ) : (
+                      <div className="text-center text-gray-500 py-8">
+                        No menu items available
                       </div>
-                    ))}
-                    <div className="pt-4 border-t">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <Input
-                          type="search"
-                          placeholder="Search for products..."
-                          className="pl-10 pr-4 w-full border-gray-200 rounded-lg"
-                          value={searchQuery}
-                          onChange={handleSearchChange}
-                          onFocus={handleSearchFocus}
-                          onBlur={handleSearchBlur}
-                        />
-                        {showSearchResults && (
-                          <SearchResults 
-                            query={searchQuery} 
-                            onClose={closeSearchResults}
-                          />
-                        )}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </SheetContent>
               </Sheet>

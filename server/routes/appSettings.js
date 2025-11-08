@@ -7,6 +7,7 @@ router.get("/", controller.getSettings);
 router.post("/", protect, admin, controller.createSettings);
 
 router.put("/logo", protect, admin, controller.updateLogo);
+router.put("/favicon", protect, admin, controller.updateFavicon);
 router.put("/hero-banners", protect, admin, controller.updateHeroBanners);
 router.put(
   "/weekly-highlights",

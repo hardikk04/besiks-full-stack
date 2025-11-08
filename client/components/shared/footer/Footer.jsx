@@ -1,20 +1,25 @@
+"use client";
+
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Facebook, Instagram, Twitter, Mail } from "lucide-react";
+import { useGetSettingsQuery } from "@/features/appSettings/appSettingsApi";
 
 const Footer = () => {
+  const { data: settingsData } = useGetSettingsQuery();
+  const logoUrl = settingsData?.data?.logo || "/img/brand.png";
   return (
     <footer className="bg-gray-100 border-t">
       <div className="container mx-auto px-4 sm:px-6 lg:px-16 pt-12 pb-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-22">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-10 md:gap-22">
           {/* Logo and Description */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center">
               <Image
-                src="/img/brand.png"
+                src={logoUrl}
                 alt="Besiks"
                 height={80}
                 width={80}
@@ -105,7 +110,7 @@ const Footer = () => {
                   className="pl-10 border-gray-300"
                 />
               </div>
-              <Button className="bg-[#174986] text-white px-6">
+              <Button className="bg-[#174986] hover:bg-[#174986]/90 text-white px-6">
                 Subscribe
               </Button>
             </div>

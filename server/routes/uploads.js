@@ -10,7 +10,11 @@ router.post("/", upload.single("file"), async (req, res) => {
       return res.status(400).json({ success: false, message: "No file uploaded" });
     }
     const filename = req.file.filename;
-    const url = `${req.protocol}://${req.get("host")}/assets/${filename}`;
+    
+    // Use environment variable for base URL in production, fallback to request host for development
+    const baseUrl = process.env.API_BASE_URL || `${req.protocol}://${req.get("host")}`;
+    const url = `${baseUrl}/assets/${filename}`;
+    
     return res.status(201).json({ success: true, filename, url });
   } catch (e) {
     console.error(e);

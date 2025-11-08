@@ -39,10 +39,8 @@ export function CustomersTable() {
   const handleDeleteCustomer = async (id, customerName) => {
     try {
       await deleteCustomer(id).unwrap();
-      toast.success(`Customer "${customerName}" deleted successfully`);
     } catch (err) {
       console.error("Failed to delete customer:", err);
-      toast.error(err?.data?.message || "Failed to delete customer");
     }
   };
 

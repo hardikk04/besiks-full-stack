@@ -330,9 +330,8 @@ export function OrdersTable({ onExportPDF, onExportExcel }) {
   const handleDeliverOrder = async (orderId) => {
     try {
       await updateOrderToDelivered(orderId).unwrap();
-      toast.success("Order marked as delivered");
     } catch (err) {
-      toast.error(err?.data?.message || "Failed to update order status");
+      // Error handling without toast
     }
   };
 

@@ -1,5 +1,24 @@
 const mongoose = require('mongoose');
 
+const wishlistItemSchema = new mongoose.Schema({
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true
+  },
+  // Variant information for variable products
+  variantSku: {
+    type: String,
+    trim: true
+  },
+  variantOptions: {
+    type: mongoose.Schema.Types.Mixed
+  }, // e.g., { "Color": "Red", "Size": "M" }
+  variantId: {
+    type: String
+  } // Reference to the variant for tracking
+}, { _id: false });
+
 const wishlistSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -7,10 +26,7 @@ const wishlistSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  products: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product'
-  }],
+  items: [wishlistItemSchema],
   totalItems: {
     type: Number,
     default: 0
@@ -21,7 +37,7 @@ const wishlistSchema = new mongoose.Schema({
 
 // Calculate total items before saving
 wishlistSchema.pre('save', function(next) {
-  this.totalItems = this.products.length;
+  this.totalItems = this.items.length;
   next();
 });
 

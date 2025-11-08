@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const slugify = require('slugify');
 
 const productSchema = new mongoose.Schema({
   name: {
@@ -12,9 +13,18 @@ const productSchema = new mongoose.Schema({
     required: [true, 'Product description is required'],
     maxlength: [1000, 'Description cannot be more than 1000 characters']
   },
+  // Product type: 'simple' or 'variable'
+  productType: {
+    type: String,
+    enum: ['simple', 'variable'],
+    default: 'simple'
+  },
   price: {
     type: Number,
-    required: [true, 'Product price is required'],
+    required: function() {
+      // Price is required for simple products, optional for variable products
+      return this.productType === 'simple';
+    },
     min: [0, 'Price cannot be negative']
   },
   mrp: {
@@ -34,11 +44,69 @@ const productSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Product image is required']
   }],
+  featuredImageIndex: {
+    type: Number,
+    default: 0,
+    min: 0
+  }, // Index of the featured image in the images array
+  // Legacy fields - kept for backward compatibility
   colors: [{
     name: { type: String, trim: true },
     value: { type: String, trim: true }
   }],
   sizes: [{ type: String, trim: true }],
+  // Variant attributes (e.g., Color, Size, Material) - for variable products
+  variantOptions: [{
+    name: { 
+      type: String, 
+      required: true, 
+      trim: true 
+    }, // e.g., "Color", "Size", "Material"
+    values: [{ 
+      type: String, 
+      trim: true 
+    }] // e.g., ["Red", "Blue", "Green"] or ["S", "M", "L"]
+  }],
+  // Product variants (combinations of options) - for variable products
+  variants: [{
+    // Options as a plain object (easier to work with than Map)
+    options: {
+      type: mongoose.Schema.Types.Mixed,
+      required: true
+    }, // e.g., { "Color": "Red", "Size": "M" }
+    price: {
+      type: Number,
+      required: true,
+      min: [0, 'Variant price cannot be negative']
+    },
+    mrp: {
+      type: Number,
+      min: [0, 'Variant MRP cannot be negative']
+    },
+    stock: {
+      type: Number,
+      required: true,
+      min: [0, 'Stock cannot be negative'],
+      default: 0
+    },
+    sku: {
+      type: String,
+      trim: true
+    },
+    images: [{
+      type: String,
+      trim: true
+    }], // Optional: variant-specific images array
+    featuredImageIndex: {
+      type: Number,
+      default: 0,
+      min: 0
+    }, // Index of the featured image in the variant images array
+    isActive: {
+      type: Boolean,
+      default: true
+    }
+  }],
   brand: {
     type: String,
     trim: true
@@ -46,11 +114,32 @@ const productSchema = new mongoose.Schema({
   sku: {
     type: String,
     unique: true,
+    sparse: true, // Only enforce uniqueness for non-null values
     trim: true
+  },
+  slug: {
+    type: String,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    sparse: true
+  },
+  metaTitle: {
+    type: String,
+    trim: true,
+    maxlength: [60, 'Meta title cannot be more than 60 characters']
+  },
+  metaDescription: {
+    type: String,
+    trim: true,
+    maxlength: [160, 'Meta description cannot be more than 160 characters']
   },
   stock: {
     type: Number,
-    required: [true, 'Stock quantity is required'],
+    required: function() {
+      // Stock is required for simple products, optional for variable products (handled at variant level)
+      return this.productType === 'simple';
+    },
     min: [0, 'Stock cannot be negative'],
     default: 0
   },
@@ -116,7 +205,29 @@ const productSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Auto-generate slug from name if not provided
+productSchema.pre('save', async function(next) {
+  // Only generate slug if it's not provided or if the name has changed
+  if (!this.slug || this.isModified('name')) {
+    let baseSlug = slugify(this.name, { lower: true, strict: true });
+    let slug = baseSlug;
+    let counter = 1;
+    
+    // Check if slug exists and make it unique
+    const Product = mongoose.model('Product');
+    while (await Product.findOne({ slug, _id: { $ne: this._id } })) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+    
+    this.slug = slug;
+  }
+  next();
+});
+
 // Index for search functionality
 productSchema.index({ name: 'text', description: 'text', tags: 'text' });
+// Create index on slug for faster queries
+productSchema.index({ slug: 1 });
 
 module.exports = mongoose.model('Product', productSchema); 

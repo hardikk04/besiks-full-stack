@@ -29,10 +29,27 @@ export const cartApi = createApi({
       invalidatesTags: ["Cart"],
     }),
     removeFromCart: builder.mutation({
-      query: (productId) => ({
-        url: `/remove/${productId}`,
-        method: "DELETE",
-      }),
+      query: (data) => {
+        // Support both old format (just productId string) and new format (object with variant info)
+        const productId = typeof data === "string" ? data : data.productId;
+        const params = new URLSearchParams();
+        
+        if (typeof data === "object" && data.variantId) {
+          params.append("variantId", data.variantId);
+        }
+        if (typeof data === "object" && data.variantSku) {
+          params.append("variantSku", data.variantSku);
+        }
+        if (typeof data === "object" && data.variantOptions) {
+          params.append("variantOptions", JSON.stringify(data.variantOptions));
+        }
+        
+        const queryString = params.toString();
+        return {
+          url: `/remove/${productId}${queryString ? `?${queryString}` : ""}`,
+          method: "DELETE",
+        };
+      },
       invalidatesTags: ["Cart"],
     }),
     clearCart: builder.mutation({

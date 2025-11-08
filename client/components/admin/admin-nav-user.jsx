@@ -20,7 +20,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { LockIcon } from "lucide-react";
-import { useLazyLogoutQuery } from "@/features/auth/authApi";
+import { useLazyAdminLogoutQuery } from "@/features/auth/authApi";
 import { useDispatch } from "react-redux";
 import { toast } from "sonner";
 import { logout } from "@/features/auth/authSlice";
@@ -35,7 +35,7 @@ export function AdminNavUser({ user }) {
     setMounted(true);
   }, []);
 
-  const [triggerLogout, { isFetching }] = useLazyLogoutQuery();
+  const [triggerLogout, { isFetching }] = useLazyAdminLogoutQuery();
   const dispatch = useDispatch();
   const router = useRouter();
 

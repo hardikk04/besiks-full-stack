@@ -1,4 +1,5 @@
 const AppSettings = require("../models/AppSettings");
+const { deleteImageFile, deleteImageFiles, findDeletedImages } = require("../utils/imageCleanup");
 
 // Get App Settings
 exports.getSettings = async (req, res) => {
@@ -56,6 +57,7 @@ async function getOrCreateSettings(initial = {}) {
   if (!settings) {
     settings = new AppSettings({
       logo: initial.logo || "",
+      favicon: initial.favicon || "",
       heroBanners: initial.heroBanners || [],
       weeklyHighlights: initial.weeklyHighlights || [],
       promoBanner: initial.promoBanner || { image: "", text: "", link: "" },
@@ -72,11 +74,41 @@ async function getOrCreateSettings(initial = {}) {
 exports.updateLogo = async (req, res) => {
   try {
     const settings = await getOrCreateSettings({ logo: req.body.logo || "" });
+    const oldLogo = settings.logo;
     settings.logo = req.body.logo;
     await settings.save();
+    
+    // Delete old logo if it's being replaced or removed
+    if (oldLogo && (!req.body.logo || oldLogo !== req.body.logo)) {
+      await deleteImageFile(oldLogo);
+    }
+    
     res.status(200).json({
       success: true,
       message: "Logo Updated Successfully",
+      data: settings,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Update Favicon
+exports.updateFavicon = async (req, res) => {
+  try {
+    const settings = await getOrCreateSettings({ favicon: req.body.favicon || "" });
+    const oldFavicon = settings.favicon;
+    settings.favicon = req.body.favicon;
+    await settings.save();
+    
+    // Delete old favicon if it's being replaced or removed
+    if (oldFavicon && (!req.body.favicon || oldFavicon !== req.body.favicon)) {
+      await deleteImageFile(oldFavicon);
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: "Favicon Updated Successfully",
       data: settings,
     });
   } catch (err) {
@@ -94,8 +126,19 @@ exports.updateHeroBanners = async (req, res) => {
         .json({ success: false, message: "Maximum 5 hero banners allowed" });
     }
 
+    // Store old banner images before update
+    const oldBannerImages = (settings.heroBanners || []).map(banner => banner.image);
+    const newBannerImages = (req.body.heroBanners || []).map(banner => banner.image);
+
     settings.heroBanners = req.body.heroBanners;
     await settings.save();
+    
+    // Delete old banner images that are no longer in the new array
+    const imagesToDelete = findDeletedImages(oldBannerImages, newBannerImages);
+    if (imagesToDelete.length > 0) {
+      await deleteImageFiles(imagesToDelete);
+    }
+    
     res.status(200).json({
       success: true,
       message: "Hero Banners Updated Successfully",
@@ -110,8 +153,20 @@ exports.updateHeroBanners = async (req, res) => {
 exports.updateWeeklyHighlights = async (req, res) => {
   try {
     const settings = await getOrCreateSettings();
+    
+    // Store old highlight images before update
+    const oldHighlightImages = (settings.weeklyHighlights || []).map(highlight => highlight.image);
+    const newHighlightImages = (req.body.weeklyHighlights || []).map(highlight => highlight.image);
+    
     settings.weeklyHighlights = req.body.weeklyHighlights;
     await settings.save();
+    
+    // Delete old highlight images that are no longer in the new array
+    const imagesToDelete = findDeletedImages(oldHighlightImages, newHighlightImages);
+    if (imagesToDelete.length > 0) {
+      await deleteImageFiles(imagesToDelete);
+    }
+    
     res.status(200).json({
       success: true,
       message: "Weekly Highlights Updated Successfully",
@@ -126,8 +181,15 @@ exports.updateWeeklyHighlights = async (req, res) => {
 exports.updatePromoBanner = async (req, res) => {
   try {
     const settings = await getOrCreateSettings();
+    const oldPromoImage = settings.promoBanner?.image;
     settings.promoBanner = req.body.promoBanner;
     await settings.save();
+    
+    // Delete old promo banner image if it's being replaced or removed
+    if (oldPromoImage && (!req.body.promoBanner?.image || oldPromoImage !== req.body.promoBanner.image)) {
+      await deleteImageFile(oldPromoImage);
+    }
+    
     res.status(200).json({
       success: true,
       message: "Promo Banner Updated Successfully",

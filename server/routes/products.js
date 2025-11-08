@@ -2,6 +2,7 @@ const express = require("express");
 const {
   getProducts,
   getProductById,
+  getProductBySlug,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -12,6 +13,7 @@ const {
   getRecentPurchases,
   getBestSellers,
 } = require("../controllers/productController");
+const { getProductsByCategory } = require("../controllers/categoryController");
 const auth = require("../middleware/auth");
 
 const router = express.Router();
@@ -41,8 +43,18 @@ router.get("/best-sellers", getBestSellers);
 // @access  Public (works for both authenticated and non-authenticated users)
 router.get("/recent-purchases", getRecentPurchases);
 
+// @route   GET /api/products/category/:slug
+// @desc    Get products by category slug
+// @access  Public
+router.get("/category/:slug", getProductsByCategory);
+
+// @route   GET /api/products/slug/:slug
+// @desc    Get product by slug
+// @access  Public
+router.get("/slug/:slug", getProductBySlug);
+
 // @route   GET /api/products/:id
-// @desc    Get product by ID
+// @desc    Get product by ID or slug
 // @access  Public
 router.get("/:id", getProductById);
 

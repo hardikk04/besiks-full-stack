@@ -17,6 +17,10 @@ const AppSettingsSchema = new mongoose.Schema(
       type: String,
       required: false,
     },
+    favicon: {
+      type: String,
+      required: false,
+    },
     heroBanners: [
       {
         image: { type: String, required: true },

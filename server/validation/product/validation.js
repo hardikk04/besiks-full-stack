@@ -37,9 +37,15 @@ const createProductValidation = z.object({
     .min(1, "Product description is required")
     .max(1000, "Description cannot be more than 1000 characters"),
 
+  productType: z
+    .enum(["simple", "variable"])
+    .default("simple")
+    .optional(),
+
   price: z
     .number({ invalid_type_error: "Price must be a number" })
-    .min(0, "Price cannot be negative"),
+    .min(0, "Price cannot be negative")
+    .optional(),
 
   mrp: z
     .number({ invalid_type_error: "MRP must be a number" })
@@ -57,7 +63,10 @@ const createProductValidation = z.object({
   images: z
     .array(z.string().url("Image must be a valid URL"))
     .min(1, "At least one product image is required"),
+  
+  featuredImageIndex: z.number().int().min(0).optional(),
 
+  // Legacy fields - kept for backward compatibility
   colors: z
     .array(
       z.object({
@@ -69,14 +78,55 @@ const createProductValidation = z.object({
 
   sizes: z.array(z.string().min(1, "Size cannot be empty")).optional(),
 
+  // Variable product fields
+  variantOptions: z
+    .array(
+      z.object({
+        name: z.string().min(1, "Attribute name is required"),
+        values: z.array(z.string().min(1, "Attribute value cannot be empty")).min(1, "At least one attribute value is required"),
+      })
+    )
+    .optional(),
+
+  variants: z
+    .array(
+      z.object({
+        options: z.record(z.string(), z.string()).refine(
+          (options) => Object.keys(options).length > 0,
+          "Variant must have at least one option"
+        ),
+        price: z.number({ invalid_type_error: "Variant price must be a number" }).min(0, "Variant price cannot be negative"),
+        mrp: z.number({ invalid_type_error: "Variant MRP must be a number" }).min(0, "Variant MRP cannot be negative").optional(),
+        stock: z.number({ invalid_type_error: "Variant stock must be a number" }).min(0, "Variant stock cannot be negative"),
+        sku: z.string().optional(),
+        images: z.array(z.string().url("Variant image must be a valid URL")).optional(),
+        featuredImageIndex: z.number().int().min(0).optional(),
+        // Keep old 'image' field for backward compatibility during validation
+        image: z.string().url("Variant image must be a valid URL").optional().or(z.literal("")),
+        isActive: z.boolean().default(true).optional(),
+      })
+    )
+    .optional(),
+
   brand: z.string().optional(),
 
   sku: z.string().optional(),
 
+  slug: z
+    .string()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must contain only lowercase letters, numbers, and hyphens")
+    .max(200, "Slug cannot be more than 200 characters")
+    .optional(),
+  
+  metaTitle: z.string().max(60, "Meta title cannot be more than 60 characters").optional(),
+  
+  metaDescription: z.string().max(160, "Meta description cannot be more than 160 characters").optional(),
+
   stock: z
     .number({ invalid_type_error: "Stock must be a number" })
     .min(0, "Stock cannot be negative")
-    .default(0),
+    .default(0)
+    .optional(),
 
   tax: z
     .string()
@@ -128,6 +178,66 @@ const createProductValidation = z.object({
       })
     )
     .optional(),
+}).superRefine((data, ctx) => {
+  const productType = data.productType || "simple";
+
+  // For simple products, price and stock are required
+  if (productType === "simple") {
+    if (!data.price && data.price !== 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Price is required for simple products",
+        path: ["price"],
+      });
+    }
+    if (!data.stock && data.stock !== 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Stock is required for simple products",
+        path: ["stock"],
+      });
+    }
+  }
+
+  // For variable products, variantOptions and variants are required
+  if (productType === "variable") {
+    if (!data.variantOptions || data.variantOptions.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "At least one variant attribute is required for variable products",
+        path: ["variantOptions"],
+      });
+    }
+    if (!data.variants || data.variants.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "At least one variant is required for variable products",
+        path: ["variants"],
+      });
+    }
+  }
+
+  // Validate that price is not higher than MRP (for simple products)
+  if (productType === "simple" && data.mrp && data.price && data.price > data.mrp) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Sale price cannot be higher than MRP",
+      path: ["price"],
+    });
+  }
+
+  // Validate variant prices and MRP
+  if (data.variants && Array.isArray(data.variants)) {
+    data.variants.forEach((variant, index) => {
+      if (variant.mrp && variant.price && variant.price > variant.mrp) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Variant sale price cannot be higher than variant MRP",
+          path: ["variants", index, "price"],
+        });
+      }
+    });
+  }
 });
 
 module.exports = {

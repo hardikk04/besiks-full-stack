@@ -13,7 +13,7 @@ export const useCart = () => {
   const { openCart } = useCartContext();
 
   // API hooks for authenticated users
-  const { data: cartData, isLoading, isError } = useGetCartQuery(undefined, {
+  const { data: cartData, isLoading, isError, refetch: refetchCart } = useGetCartQuery(undefined, {
     skip: !isAuthenticated,
   });
   const [addToCartMutation] = useAddToCartMutation();
@@ -44,31 +44,43 @@ export const useCart = () => {
   // Add item to cart
   const addToCart = async (product, quantity = 1) => {
     try {
+      // Prepare cart item data
+      const cartItemData = {
+        productId: product._id,
+        quantity,
+      };
+
+      // Add variant information if it's a variable product
+      if (product.productType === "variable" && product.selectedVariant) {
+        cartItemData.variantSku = product.selectedVariant.sku || product.sku;
+        cartItemData.variantOptions = product.selectedVariantOptions || product.selectedVariant.options;
+        cartItemData.variantId = product.selectedVariant._id?.toString();
+      }
+
       if (isAuthenticated) {
-        await addToCartMutation({
-          productId: product._id,
-          quantity,
-        }).unwrap();
+        await addToCartMutation(cartItemData).unwrap();
         openCart(); // Open cart sheet after successful addition
       } else {
         dispatch(addToGuestCart({ product, quantity }));
         openCart(); // Open cart sheet after successful addition
       }
     } catch (error) {
-      toast.error(error?.data?.message || "Failed to add to cart");
+      // Error handling without toast
     }
   };
 
   // Update cart item quantity
-  const updateCartItem = async (productId, quantity) => {
+  const updateCartItem = async (productId, quantity, variantSku = null, variantOptions = null) => {
     try {
       if (isAuthenticated) {
         await updateCartItemMutation({
           productId,
           quantity,
+          variantSku,
+          variantOptions,
         }).unwrap();
       } else {
-        dispatch(updateGuestCartItem({ productId, quantity }));
+        dispatch(updateGuestCartItem({ productId, quantity, variantSku, variantOptions }));
       }
     } catch (error) {
       toast.error(error?.data?.message || "Failed to update cart");
@@ -76,14 +88,16 @@ export const useCart = () => {
   };
 
   // Remove item from cart
-  const removeFromCart = async (productId) => {
+  const removeFromCart = async (productId, variantSku = null, variantOptions = null, variantId = null) => {
     try {
       if (isAuthenticated) {
-        await removeFromCartMutation(productId).unwrap();
-        toast.success("Item removed from cart");
+        const removeData = { productId };
+        if (variantId) removeData.variantId = variantId;
+        if (variantSku) removeData.variantSku = variantSku;
+        if (variantOptions) removeData.variantOptions = variantOptions;
+        await removeFromCartMutation(removeData).unwrap();
       } else {
-        dispatch(removeFromGuestCart(productId));
-        toast.success("Item removed from cart");
+        dispatch(removeFromGuestCart({ productId, variantSku, variantOptions, variantId }));
       }
     } catch (error) {
       toast.error(error?.data?.message || "Failed to remove item");
@@ -142,6 +156,7 @@ export const useCart = () => {
     clearCart,
     mergeGuestCartOnLogin,
     createOrderFromCart,
+    refetchCart: isAuthenticated ? refetchCart : null,
     isAuthenticated,
   };
 };

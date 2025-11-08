@@ -13,10 +13,10 @@ export const wishlistApi = createApi({
       providesTags: ["Wishlist"],
     }),
     addToWishlist: builder.mutation({
-      query: (productId) => ({
+      query: (data) => ({
         url: "/add",
         method: "POST",
-        body: { productId },
+        body: typeof data === "string" ? { productId: data } : data, // Support both old and new format
       }),
       invalidatesTags: ["Wishlist"],
     }),

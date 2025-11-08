@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 const page = () => {
+  useEffect(() => {
+    document.title = "Besiks - Contact";
+  }, []);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",

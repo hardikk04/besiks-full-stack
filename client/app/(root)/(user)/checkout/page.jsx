@@ -21,11 +21,17 @@ import { useSelector } from "react-redux";
 
 const CheckoutPage = () => {
   const router = useRouter();
-  const { cart, isLoading: cartLoading, createOrderFromCart } = useCart();
+  const { cart, isLoading: cartLoading, createOrderFromCart, refetchCart } = useCart();
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  const [isMounted, setIsMounted] = useState(false);
   
   const [confirmPayment, { isLoading: isConfirmingPayment }] = useConfirmPaymentMutation();
   const [validateCoupon, { isLoading: isValidatingCoupon }] = useValidateCouponMutation();
+
+  useEffect(() => {
+    document.title = "Besiks - Checkout";
+    setIsMounted(true);
+  }, []);
   
   const [shippingAddress, setShippingAddress] = useState({
     street: "",
@@ -61,6 +67,31 @@ const CheckoutPage = () => {
     }
   }, [cart, cartLoading, router]);
 
+  // Refetch cart on mount to ensure we have latest data with tax field
+  useEffect(() => {
+    if (isAuthenticated && refetchCart) {
+      refetchCart();
+    }
+  }, [isAuthenticated, refetchCart]);
+
+  // Debug: Log cart structure to help diagnose tax issues
+  useEffect(() => {
+    if (!cartLoading && cart.items && cart.items.length > 0) {
+      console.log('Checkout cart structure:', {
+        itemsCount: cart.items.length,
+        items: cart.items.map(item => ({
+          name: typeof item.product === 'object' ? (item.product?.name || item.name) : item.name,
+          productId: typeof item.product === 'object' ? (item.product?._id || item.product) : item.product,
+          tax: typeof item.product === 'object' ? item.product?.tax : 'N/A (product not populated)',
+          productType: typeof item.product,
+          productFull: item.product,
+          price: item.price,
+          quantity: item.quantity
+        }))
+      });
+    }
+  }, [cart, cartLoading]);
+
   const handleInputChange = (field, value) => {
     setShippingAddress(prev => ({
       ...prev,
@@ -86,12 +117,50 @@ const CheckoutPage = () => {
 
     // Tax per product using its tax percent string (e.g., "18")
     const taxPrice = (cart.items || []).reduce((sum, item) => {
-      const taxPercent = parseFloat(item.product?.tax ?? "0");
+      // Access tax from product - handle multiple possible structures
+      let taxValue = "0";
+      
+      // Check if product is populated (object) or just an ID (string)
+      if (item.product) {
+        if (typeof item.product === 'object' && item.product !== null) {
+          // Product is populated object
+          taxValue = item.product.tax ?? "0";
+        } else if (typeof item.product === 'string') {
+          // Product is just an ID - this shouldn't happen but handle it
+          console.warn('Product is not populated, tax cannot be calculated for item:', item.name || item.product);
+          return sum;
+        }
+      }
+      
+      const taxPercent = parseFloat(taxValue);
+      
+      // Debug logging to help diagnose issues
+      if (process.env.NODE_ENV === 'development' && !cartLoading) {
+        console.log('Cart item tax calculation:', {
+          productName: typeof item.product === 'object' ? (item.product?.name || item.name) : item.name,
+          productId: typeof item.product === 'object' ? (item.product?._id || item.product) : item.product,
+          taxValue,
+          taxPercent,
+          productType: typeof item.product,
+          productObject: item.product,
+          price: item.price,
+          quantity: item.quantity,
+          fullItem: item
+        });
+      }
+      
+      // Skip if tax is invalid or zero
+      if (isNaN(taxPercent) || taxPercent <= 0) {
+        return sum;
+      }
+      
       const lineAmount = item.price * item.quantity;
       // proportionally reduce tax base if coupon applied
       const proportion = itemsPrice > 0 ? lineAmount / itemsPrice : 0;
       const lineDiscountedBase = discountedSubtotal * proportion;
-      return sum + (lineDiscountedBase * (isNaN(taxPercent) ? 0 : taxPercent) / 100);
+      const lineTax = (lineDiscountedBase * taxPercent) / 100;
+      
+      return sum + lineTax;
     }, 0);
 
     const shippingPrice = discountedSubtotal > 100 ? 0 : 10;
@@ -172,7 +241,8 @@ const CheckoutPage = () => {
     }
   };
 
-  if (cartLoading) {
+  // Prevent hydration mismatch by not rendering different content on server vs client
+  if (!isMounted || cartLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">Loading checkout...</div>
@@ -395,7 +465,7 @@ const CheckoutPage = () => {
           <Button
             onClick={handleCheckout}
             disabled={!isFormValid() || isProcessingPayment}
-            className="w-full"
+            className="w-full bg-[#174986] hover:bg-[#174986]/90 text-white"
             size="lg"
           >
             {isProcessingPayment ? (

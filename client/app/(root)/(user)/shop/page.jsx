@@ -1,23 +1,25 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { FreeMode } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/free-mode";
 import ProductCard from "@/components/home/ProductCard";
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useGetAllProductsQuery, useSearchProductQuery } from "@/features/products/productApi";
 import { useGetAllCategoriesQuery, useGetFeaturedCategoriesQuery } from "@/features/category/categoryApi";
 
 // Component that uses useSearchParams - needs to be wrapped in Suspense
 const ShopContent = () => {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
-  
-  const [activeFilter, setActiveFilter] = useState("All");
+
+  useEffect(() => {
+    document.title = "Besiks - Shop";
+  }, []);
 
   // API calls
   const { data: productsData, isLoading: productsLoading } = useGetAllProductsQuery();
@@ -32,18 +34,32 @@ const ShopContent = () => {
   const featuredCategories = featuredCategoriesData?.categories || [];
   const categories = featuredCategories.length > 0 ? featuredCategories : allCategories;
   const filters = ["All", ...categories.map(cat => cat.name)];
+  
+  // Get background image - use first featured category image, or first category image, or default
+  const backgroundImage = featuredCategories.length > 0 && featuredCategories[0]?.image
+    ? featuredCategories[0].image
+    : allCategories.length > 0 && allCategories[0]?.image
+    ? allCategories[0].image
+    : "/img/dryershop.png";
 
-  // Determine which products to show
+  // Handle filter click - navigate to category route or show all products
+  const handleFilterClick = (filterName) => {
+    if (filterName === "All") {
+      router.push("/shop");
+    } else {
+      const selectedCategory = categories.find(cat => cat.name === filterName);
+      if (selectedCategory) {
+        // Use slug if available, otherwise fall back to id
+        const categoryIdentifier = selectedCategory.slug || selectedCategory._id;
+        router.push(`/shop/category/${categoryIdentifier}`);
+      }
+    }
+  };
+
+  // Determine which products to show (only when search is active, otherwise show all or navigate to category)
   const allProducts = productsData?.products || [];
   const searchResults = searchData?.data?.products || [];
-  const products = searchQuery.trim() ? searchResults : allProducts;
-
-  // Filter products by category
-  const filteredProducts = activeFilter === "All" 
-    ? products 
-    : products.filter(product => 
-        product.categories && product.categories.some(category => category.name === activeFilter)
-      );
+  const filteredProducts = searchQuery.trim() ? searchResults : allProducts;
 
   // Show loading state
   if (productsLoading || categoriesLoading || featuredCategoriesLoading || (searchQuery.trim() && searchLoading)) {
@@ -60,7 +76,7 @@ const ShopContent = () => {
         <div
           className="shop-hero h-full w-full rounded-2xl bg-cover bg-center bg-no-repeat relative"
           style={{
-            backgroundImage: "url('/img/dryershop.png')",
+            backgroundImage: `url('${backgroundImage}')`,
           }}
         >
           {/* Overlay */}
@@ -82,9 +98,9 @@ const ShopContent = () => {
                 {filters.map((filter) => (
                   <SwiperSlide key={filter} className="!w-auto">
                     <button
-                      onClick={() => setActiveFilter(filter)}
+                      onClick={() => handleFilterClick(filter)}
                       className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 whitespace-nowrap ${
-                        activeFilter === filter
+                        filter === "All"
                           ? "bg-white text-gray-900 shadow-lg"
                           : "text-gray-300"
                       }`}
@@ -101,9 +117,9 @@ const ShopContent = () => {
               {filters.map((filter) => (
                 <button
                   key={filter}
-                  onClick={() => setActiveFilter(filter)}
+                  onClick={() => handleFilterClick(filter)}
                   className={`px-6 py-2 rounded-full text-sm md:text-base font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
-                    activeFilter === filter
+                    filter === "All"
                       ? "bg-white text-gray-900 shadow-lg"
                       : "text-gray-300"
                   }`}
@@ -116,7 +132,7 @@ const ShopContent = () => {
         </div>
       </section>
 
-      <section className="container mx-auto px-4 sm:px-6 lg:px-16 py-10">
+      <section className="container mx-auto px-4 sm:px-6 lg:px-16 md:py-10">
         {/* Search Results Header */}
         {searchQuery.trim() && (
           <div className="mb-6">
@@ -131,7 +147,7 @@ const ShopContent = () => {
 
         {/* Products Grid */}
         {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredProducts.map((product) => (
               <div key={product._id} className="border p-2 rounded-lg h-full">
                 <ProductCard product={product} />

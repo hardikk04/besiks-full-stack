@@ -28,6 +28,14 @@ export const appSettingsApi = createApi({
       }),
       invalidatesTags: ["AppSettings"],
     }),
+    updateFavicon: builder.mutation({
+      query: (faviconData) => ({
+        url: "/favicon",
+        method: "PUT",
+        body: faviconData,
+      }),
+      invalidatesTags: ["AppSettings"],
+    }),
     updateHeroBanners: builder.mutation({
       query: (bannersData) => ({
         url: "/hero-banners",
@@ -83,6 +91,7 @@ export const {
   useGetSettingsQuery,
   useCreateSettingsMutation,
   useUpdateLogoMutation,
+  useUpdateFaviconMutation,
   useUpdateHeroBannersMutation,
   useUpdateWeeklyHighlightsMutation,
   useUpdatePromoBannerMutation,

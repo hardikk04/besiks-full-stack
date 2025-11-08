@@ -2,11 +2,16 @@ const Product = require("../models/Product");
 const Tag = require("../models/Tag");
 const Category = require("../models/Category");
 const Order = require("../models/Order");
+const Cart = require("../models/Cart");
+const Wishlist = require("../models/Wishlist");
+const mongoose = require("mongoose");
+const slugify = require("slugify");
 const {
   getAllProductValidation,
   createProductValidation,
   mongooseIdValidation,
 } = require("../validation/product/validation");
+const { deleteImageFiles, findDeletedImages } = require("../utils/imageCleanup");
 
 // @desc    Get all products
 // @route   GET /api/products
@@ -86,24 +91,30 @@ const getProducts = async (req, res) => {
   }
 };
 
-// @desc    Get product by ID
+// @desc    Get product by ID or slug
 // @route   GET /api/products/:id
 // @access  Public
 const getProductById = async (req, res) => {
   try {
-    const parsed = mongooseIdValidation.safeParse(req.params.id);
-    if (!parsed.success) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation Error",
-        errors: parsed.error.flatten(),
-      });
+    const identifier = req.params.id;
+    
+    // Check if it's a valid MongoDB ObjectId
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(identifier);
+    let product;
+    
+    if (isObjectId) {
+      product = await Product.findById(identifier)
+        .populate("categories", "name slug")
+        .populate("tags", "name")
+        .populate("reviews.user", "name avatar");
+    } else {
+      // Try to find by slug
+      product = await Product.findOne({ slug: identifier })
+        .populate("categories", "name slug")
+        .populate("tags", "name")
+        .populate("reviews.user", "name avatar");
     }
-
-    const product = await Product.findById(req.params.id)
-      .populate("categories", "name")
-      .populate("reviews.user", "name avatar");
-
+    
     if (!product) {
       return res
         .status(404)
@@ -112,14 +123,37 @@ const getProductById = async (req, res) => {
 
     res
       .status(200)
-      .json({ sucess: true, message: "Product found successfully", product });
+      .json({ success: true, message: "Product found successfully", product });
   } catch (err) {
     console.error(err.message);
-    if (err.kind === "ObjectId") {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// @desc    Get product by slug
+// @route   GET /api/products/slug/:slug
+// @access  Public
+const getProductBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const product = await Product.findOne({ slug })
+      .populate("categories", "name slug")
+      .populate("tags", "name")
+      .populate("reviews.user", "name avatar");
+    
+    if (!product) {
       return res
         .status(404)
         .json({ success: false, message: "Product not found" });
     }
+    
+    res.status(200).json({
+      success: true,
+      message: "Product found successfully",
+      product,
+    });
+  } catch (err) {
+    console.error(err.message);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -139,16 +173,105 @@ const createProduct = async (req, res) => {
       });
     }
 
-    const checkProduct = await Product.findOne({ sku: parsed.data.sku });
-
-    if (checkProduct) {
-      return res.status(400).json({
-        success: false,
-        message: "SKU MUST UNIQUE",
+    // Check SKU uniqueness for simple products or base SKU
+    // Only check if SKU is provided and not empty
+    if (parsed.data.sku && parsed.data.sku.trim() !== "") {
+      const skuToCheck = parsed.data.sku.trim();
+      const checkProduct = await Product.findOne({ sku: skuToCheck });
+      if (checkProduct) {
+        return res.status(400).json({
+          success: false,
+          message: "SKU MUST UNIQUE",
+        });
+      }
+      
+      // Also check if the SKU exists in any variant of any product
+      const checkVariantProduct = await Product.findOne({
+        "variants.sku": skuToCheck
       });
+      if (checkVariantProduct) {
+        return res.status(400).json({
+          success: false,
+          message: "SKU MUST UNIQUE",
+        });
+      }
     }
 
-    const { tags } = parsed.data;
+    // Check variant SKU uniqueness for variable products
+    if (parsed.data.productType === "variable" && parsed.data.variants) {
+      const variantSkus = parsed.data.variants
+        .map((v) => v.sku)
+        .filter((sku) => sku && sku.trim() !== "");
+      
+      if (variantSkus.length > 0) {
+        // Check if any variant SKU matches the simple product SKU
+        if (parsed.data.sku && parsed.data.sku.trim() !== "") {
+          const simpleSku = parsed.data.sku.trim();
+          if (variantSkus.includes(simpleSku)) {
+            return res.status(400).json({
+              success: false,
+              message: "Variant SKU cannot match product SKU",
+              errors: { variants: "Variant SKUs must be unique and different from product SKU" },
+            });
+          }
+        }
+        
+        // Check for duplicate SKUs within variants
+        const duplicateSkus = variantSkus.filter((sku, index) => 
+          variantSkus.indexOf(sku) !== index && sku.trim() !== ""
+        );
+        if (duplicateSkus.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: "Duplicate SKUs found within variants",
+            errors: { variants: "Each variant must have a unique SKU" },
+          });
+        }
+        
+        // Check if any variant SKU already exists in any product
+        const existingProducts = await Product.find({
+          $or: [
+            { sku: { $in: variantSkus } },
+            { "variants.sku": { $in: variantSkus } }
+          ]
+        });
+        
+        if (existingProducts.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: "One or more variant SKUs already exist",
+            errors: { variants: "Variant SKUs must be unique" },
+          });
+        }
+      }
+    }
+
+    // Handle slug generation/validation
+    let productData = { ...parsed.data };
+    if (!productData.slug && productData.name) {
+      // If slug is not provided, generate it from name
+      productData.slug = slugify(productData.name, { lower: true, strict: true });
+      
+      // Ensure slug uniqueness
+      let baseSlug = productData.slug;
+      let counter = 1;
+      while (await Product.findOne({ slug: productData.slug })) {
+        productData.slug = `${baseSlug}-${counter}`;
+        counter++;
+      }
+    } else if (productData.slug) {
+      // Validate slug uniqueness if provided
+      const existingProduct = await Product.findOne({ slug: productData.slug });
+      if (existingProduct) {
+        return res.status(400).json({
+          success: false,
+          message: "A product with this slug already exists",
+          errors: { slug: "Slug must be unique" },
+        });
+      }
+    }
+
+    const { tags, productType } = productData;
     let tagIds = [];
     if (tags && tags.length > 0) {
       for (let tagName of tags) {
@@ -160,7 +283,52 @@ const createProduct = async (req, res) => {
       }
     }
 
-    const newProduct = new Product({ ...parsed.data, tags: tagIds });
+    // Set default productType if not provided
+    if (!productType) {
+      productData.productType = "simple";
+    }
+
+    // For variable products, ensure variants are properly structured
+    if (productData.productType === "variable" && productData.variants) {
+      // Ensure all variants have required fields
+      productData.variants = productData.variants.map((variant) => {
+        // Handle backward compatibility: convert old 'image' (singular) to 'images' (array)
+        let variantImages = variant.images || [];
+        if (variant.image && !variant.images) {
+          // If old 'image' field exists but 'images' doesn't, convert it
+          variantImages = [variant.image];
+        }
+        // Ensure images is an array
+        if (!Array.isArray(variantImages)) {
+          variantImages = variantImages ? [variantImages] : [];
+        }
+        
+        // Create new variant object, explicitly removing old 'image' field
+        const { image, ...variantWithoutImage } = variant;
+        
+        return {
+          ...variantWithoutImage,
+          images: variantImages,
+          isActive: variant.isActive !== undefined ? variant.isActive : true,
+        };
+      });
+    }
+
+    // Clean up productData - remove empty SKU for variable products
+    if (productData.productType === "variable" && (!productData.sku || productData.sku.trim() === "")) {
+      delete productData.sku; // Remove empty SKU to avoid unique constraint issues
+    }
+
+    // Trim SKU if provided
+    if (productData.sku) {
+      productData.sku = productData.sku.trim();
+      // Remove SKU if it's empty after trimming
+      if (productData.sku === "") {
+        delete productData.sku;
+      }
+    }
+
+    const newProduct = new Product({ ...productData, tags: tagIds });
     const product = await newProduct.save();
     res.status(201).json({
       success: true,
@@ -168,10 +336,20 @@ const createProduct = async (req, res) => {
       product,
     });
   } catch (err) {
-    console.error(err.message);
+    console.error("Product creation error:", err);
+    // Check for duplicate key error (MongoDB unique constraint)
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern || {})[0];
+      return res.status(400).json({
+        success: false,
+        message: `${field === 'sku' ? 'SKU' : field === 'slug' ? 'Slug' : field} already exists`,
+        errors: { [field]: `${field} must be unique` },
+      });
+    }
     res.status(500).json({
       success: false,
       message: "Server error",
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined,
     });
   }
 };
@@ -198,10 +376,169 @@ const updateProduct = async (req, res) => {
         .json({ success: false, message: "Product not found" });
     }
 
+    // Validate the update data using the same validation schema
+    const validationParsed = createProductValidation.safeParse(req.body);
+    if (!validationParsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation Error",
+        errors: validationParsed.error.flatten().fieldErrors,
+      });
+    }
+
+    // Store old images before update
+    const oldImages = product.images || [];
+
+    // Handle slug generation/validation if name is being updated
+    let updateData = { ...req.body };
+
+    // Determine product type (use updateData if provided, otherwise use existing)
+    const currentProductType = updateData.productType || product.productType || "simple";
+    
+    // Check SKU uniqueness only for simple products or if base SKU is being updated
+    // For variable products, SKU is managed at variant level, so base SKU is optional
+    if (currentProductType === "simple" && updateData.sku && updateData.sku !== product.sku) {
+      const checkProduct = await Product.findOne({ 
+        sku: updateData.sku,
+        _id: { $ne: product._id }
+      });
+      if (checkProduct) {
+        return res.status(400).json({
+          success: false,
+          message: "SKU MUST UNIQUE",
+        });
+      }
+      
+      // Also check if the SKU exists in any variant of any product
+      const checkVariantProduct = await Product.findOne({
+        _id: { $ne: product._id },
+        "variants.sku": updateData.sku
+      });
+      if (checkVariantProduct) {
+        return res.status(400).json({
+          success: false,
+          message: "SKU MUST UNIQUE",
+        });
+      }
+    }
+    
+    // For variable products, check if base SKU conflicts with variant SKUs
+    if (currentProductType === "variable" && updateData.sku && updateData.sku !== product.sku) {
+      // Check if the base SKU exists in other products
+      const checkProduct = await Product.findOne({ 
+        sku: updateData.sku,
+        _id: { $ne: product._id }
+      });
+      if (checkProduct) {
+        return res.status(400).json({
+          success: false,
+          message: "SKU MUST UNIQUE",
+        });
+      }
+      
+      // Check if the base SKU exists in any variant of any product
+      const checkVariantProduct = await Product.findOne({
+        _id: { $ne: product._id },
+        "variants.sku": updateData.sku
+      });
+      if (checkVariantProduct) {
+        return res.status(400).json({
+          success: false,
+          message: "SKU MUST UNIQUE",
+        });
+      }
+    }
+
+    // Check variant SKU uniqueness for variable products
+    if (currentProductType === "variable" && updateData.variants) {
+      const variantSkus = updateData.variants
+        .map((v) => v.sku)
+        .filter((sku) => sku && sku.trim() !== "");
+      
+      if (variantSkus.length > 0) {
+        // Check if any variant SKU matches the simple product SKU
+        const productSku = updateData.sku || product.sku;
+        if (productSku && productSku.trim() !== "") {
+          const simpleSku = productSku.trim();
+          if (variantSkus.includes(simpleSku)) {
+            return res.status(400).json({
+              success: false,
+              message: "Variant SKU cannot match product SKU",
+              errors: { variants: "Variant SKUs must be unique and different from product SKU" },
+            });
+          }
+        }
+        
+        // Get existing variant SKUs from current product to exclude them from uniqueness check
+        const existingVariantSkus = (product.variants || [])
+          .map((v) => v.sku)
+          .filter((sku) => sku && sku.trim() !== "");
+        
+        // Only check SKUs that are new or changed
+        const skusToCheck = variantSkus.filter(sku => !existingVariantSkus.includes(sku));
+        
+        if (skusToCheck.length > 0) {
+          // Check if any variant SKU already exists in other products or in base SKU fields
+          const existingProducts = await Product.find({
+            _id: { $ne: product._id },
+            $or: [
+              { sku: { $in: skusToCheck } },
+              { "variants.sku": { $in: skusToCheck } }
+            ]
+          });
+          
+          if (existingProducts.length > 0) {
+            return res.status(400).json({
+              success: false,
+              message: "One or more variant SKUs already exist",
+              errors: { variants: "Variant SKUs must be unique" },
+            });
+          }
+        }
+        
+        // Also check for duplicate SKUs within the same product's variants
+        const duplicateSkus = variantSkus.filter((sku, index) => 
+          variantSkus.indexOf(sku) !== index && sku.trim() !== ""
+        );
+        if (duplicateSkus.length > 0) {
+          return res.status(400).json({
+            success: false,
+            message: "Duplicate SKUs found within variants",
+            errors: { variants: "Each variant must have a unique SKU" },
+          });
+        }
+      }
+    }
+    if (updateData.name && !updateData.slug) {
+      // If name changes but slug not provided, generate new slug
+      updateData.slug = slugify(updateData.name, { lower: true, strict: true });
+      
+      // Ensure slug uniqueness (excluding current product)
+      let baseSlug = updateData.slug;
+      let counter = 1;
+      while (await Product.findOne({ slug: updateData.slug, _id: { $ne: product._id } })) {
+        updateData.slug = `${baseSlug}-${counter}`;
+        counter++;
+      }
+    } else if (updateData.slug) {
+      // Validate slug uniqueness if provided
+      const existingProduct = await Product.findOne({ 
+        slug: updateData.slug, 
+        _id: { $ne: product._id } 
+      });
+      if (existingProduct) {
+        return res.status(400).json({
+          success: false,
+          message: "A product with this slug already exists",
+          errors: { slug: "Slug must be unique" },
+        });
+      }
+    }
+
     // Normalize tags: accept array of tag names or ObjectIds; convert names to Tag ids
-    if (Array.isArray(req.body.tags)) {
+    if (Array.isArray(updateData.tags)) {
       const normalizedTagIds = [];
-      for (const tagInput of req.body.tags) {
+      for (const tagInput of updateData.tags) {
         try {
           // If it's a valid ObjectId, keep as is
           if (typeof tagInput === "string" && tagInput.match(/^[a-fA-F0-9]{24}$/)) {
@@ -219,14 +556,53 @@ const updateProduct = async (req, res) => {
           // Skip malformed tag inputs silently
         }
       }
-      req.body.tags = normalizedTagIds;
+      updateData.tags = normalizedTagIds;
+    }
+
+    // Set default productType if not provided
+    if (!updateData.productType) {
+      updateData.productType = product.productType || "simple";
+    }
+
+    // For variable products, ensure variants are properly structured
+    if (updateData.productType === "variable" && updateData.variants) {
+      // Ensure all variants have required fields
+      updateData.variants = updateData.variants.map((variant) => {
+        // Handle backward compatibility: convert old 'image' (singular) to 'images' (array)
+        let variantImages = variant.images || [];
+        if (variant.image && !variant.images) {
+          // If old 'image' field exists but 'images' doesn't, convert it
+          variantImages = [variant.image];
+        }
+        // Ensure images is an array
+        if (!Array.isArray(variantImages)) {
+          variantImages = variantImages ? [variantImages] : [];
+        }
+        
+        // Create new variant object, explicitly removing old 'image' field
+        const { image, ...variantWithoutImage } = variant;
+        
+        return {
+          ...variantWithoutImage,
+          images: variantImages,
+          isActive: variant.isActive !== undefined ? variant.isActive : true,
+        };
+      });
     }
 
     product = await Product.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
-      { new: true }
+      { $set: updateData },
+      { new: true, runValidators: true }
     );
+
+    // Delete old images that are no longer in the new images array
+    if (req.body.images && Array.isArray(req.body.images)) {
+      const imagesToDelete = findDeletedImages(oldImages, req.body.images);
+      if (imagesToDelete.length > 0) {
+        await deleteImageFiles(imagesToDelete);
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -256,7 +632,7 @@ const deleteProduct = async (req, res) => {
       });
     }
 
-    const product = await Product.findByIdAndDelete(req.params.id);
+    const product = await Product.findById(req.params.id);
 
     if (!product) {
       return res
@@ -264,9 +640,113 @@ const deleteProduct = async (req, res) => {
         .json({ success: false, message: "Product not found" });
     }
 
+    // Store images before deletion
+    const productImages = product.images || [];
+    
+    // Collect all variant images
+    const variantImages = [];
+    if (product.variants && Array.isArray(product.variants)) {
+      product.variants.forEach(variant => {
+        if (variant.images && Array.isArray(variant.images)) {
+          variantImages.push(...variant.images);
+        }
+        // Handle backward compatibility with old 'image' field
+        if (variant.image && !variant.images) {
+          variantImages.push(variant.image);
+        }
+      });
+    }
+    
+    const allImagesToDelete = [...productImages, ...variantImages];
+
+    // Convert product ID to ObjectId for proper matching
+    const productObjectId = new mongoose.Types.ObjectId(req.params.id);
+    const productIdString = req.params.id;
+
+    // Remove product from all carts
+    // Method 1: Use $pull with ObjectId (most efficient)
+    const cartUpdateResult1 = await Cart.updateMany(
+      { "items.product": productObjectId },
+      { $pull: { items: { product: productObjectId } } }
+    );
+
+    // Method 2: Use $pull with string ID (fallback)
+    const cartUpdateResult2 = await Cart.updateMany(
+      { "items.product": productIdString },
+      { $pull: { items: { product: productIdString } } }
+    );
+
+    // Method 3: Manual cleanup for any remaining items (safety net)
+    // Find all carts that might still have this product
+    const allCarts = await Cart.find({
+      "items.product": { $in: [productObjectId, productIdString] }
+    });
+    let cartsModified = 0;
+    for (const cart of allCarts) {
+      const originalLength = cart.items.length;
+      cart.items = cart.items.filter(item => {
+        // Compare both as ObjectId and as string
+        const itemProductId = item.product?.toString ? item.product.toString() : String(item.product);
+        const productIdStr = productObjectId.toString();
+        return itemProductId !== productIdString && itemProductId !== productIdStr;
+      });
+      if (cart.items.length !== originalLength) {
+        // Recalculate totals
+        cart.totalItems = cart.items.reduce((total, item) => total + item.quantity, 0);
+        cart.totalPrice = cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
+        await cart.save();
+        cartsModified++;
+      }
+    }
+
+    // Remove product from all wishlists
+    // Method 1: Use $pull with ObjectId (most efficient)
+    const wishlistUpdateResult1 = await Wishlist.updateMany(
+      { "items.product": productObjectId },
+      { $pull: { items: { product: productObjectId } } }
+    );
+
+    // Method 2: Use $pull with string ID (fallback)
+    const wishlistUpdateResult2 = await Wishlist.updateMany(
+      { "items.product": productIdString },
+      { $pull: { items: { product: productIdString } } }
+    );
+
+    // Method 3: Manual cleanup for any remaining items (safety net)
+    // Find all wishlists that might still have this product
+    const allWishlists = await Wishlist.find({
+      "items.product": { $in: [productObjectId, productIdString] }
+    });
+    let wishlistsModified = 0;
+    for (const wishlist of allWishlists) {
+      const originalLength = wishlist.items.length;
+      wishlist.items = wishlist.items.filter(item => {
+        // Compare both as ObjectId and as string
+        const itemProductId = item.product?.toString ? item.product.toString() : String(item.product);
+        const productIdStr = productObjectId.toString();
+        return itemProductId !== productIdString && itemProductId !== productIdStr;
+      });
+      if (wishlist.items.length !== originalLength) {
+        // Recalculate totalItems
+        wishlist.totalItems = wishlist.items.length;
+        await wishlist.save();
+        wishlistsModified++;
+      }
+    }
+
+    console.log(`Removed product ${req.params.id} from carts (updateMany: ${cartUpdateResult1.modifiedCount + cartUpdateResult2.modifiedCount}, manual: ${cartsModified}) and wishlists (updateMany: ${wishlistUpdateResult1.modifiedCount + wishlistUpdateResult2.modifiedCount}, manual: ${wishlistsModified})`);
+
+    // Delete the product
+    await Product.findByIdAndDelete(req.params.id);
+
+    // Delete all product and variant images
+    if (allImagesToDelete.length > 0) {
+      await deleteImageFiles(allImagesToDelete);
+    }
+
     res
       .status(200)
-      .json({ success: false, message: "Product removed successfully" });
+      .json({ success: true, message: "Product removed successfully" });
   } catch (err) {
     console.error(err.message);
 
@@ -694,6 +1174,7 @@ const getBestSellers = async (req, res) => {
 module.exports = {
   getProducts,
   getProductById,
+  getProductBySlug,
   createProduct,
   updateProduct,
   deleteProduct,

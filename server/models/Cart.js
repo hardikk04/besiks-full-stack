@@ -17,7 +17,18 @@ const cartItemSchema = new mongoose.Schema({
     required: true
   },
   name: String,
-  image: String
+  image: String,
+  // Variant information for variable products
+  variantSku: {
+    type: String,
+    trim: true
+  },
+  variantOptions: {
+    type: mongoose.Schema.Types.Mixed
+  }, // e.g., { "Color": "Red", "Size": "M" }
+  variantId: {
+    type: String
+  } // Reference to the variant for tracking
 });
 
 const cartSchema = new mongoose.Schema({

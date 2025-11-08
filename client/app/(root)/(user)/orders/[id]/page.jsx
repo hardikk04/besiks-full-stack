@@ -26,6 +26,14 @@ const OrderConfirmationPage = () => {
 
   const { data: orderData, isLoading, isError } = useGetOrderByIdQuery(orderId);
 
+  useEffect(() => {
+    if (orderData?.order) {
+      document.title = `Besiks - Order #${orderData.order.orderNumber || orderId}`;
+    } else {
+      document.title = "Besiks - Order";
+    }
+  }, [orderData, orderId]);
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">

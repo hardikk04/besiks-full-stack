@@ -9,9 +9,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { FreeMode } from "swiper/modules";
+import { FreeMode, Navigation } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/free-mode";
+import "swiper/css/navigation";
 import {
   Heart,
   Share,
@@ -21,10 +22,9 @@ import {
   ShoppingCart,
   ChevronDown,
   ChevronUp,
-  ArrowRight,
 } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -35,74 +35,315 @@ import ProductInfoCard from "@/components/product/ProductInfoCard";
 import ProductCard from "@/components/home/ProductCard";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useGetAllProductsQuery } from "@/features/products/productApi";
+import { useGetProductByIdQuery, useGetAllProductsQuery } from "@/features/products/productApi";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { toast } from "sonner";
 
 const page = () => {
   const params = useParams();
-  const productId = params.id;
+  // Support both slug and id for backward compatibility
+  const productIdentifier = params.id;
 
   const [quantity, setQuantity] = useState(1);
   const [selectedColor, setSelectedColor] = useState("black");
   const [selectedSize, setSelectedSize] = useState("M");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showLessSpecs, setShowLessSpecs] = useState(false);
-  const [showLessDescription, setShowLessDescription] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  
+  // Variable product state
+  const [selectedVariantOptions, setSelectedVariantOptions] = useState({}); // {Color: "Red", Size: "M"}
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const previousVariantIdRef = useRef(null);
 
-  // API calls
-  const { data: productsData, isLoading: productsLoading } =
-    useGetAllProductsQuery();
+  // API calls - use slug-aware query
+  const { data: productResponse, isLoading: productsLoading } =
+    useGetProductByIdQuery(productIdentifier);
+  const { data: allProductsData } = useGetAllProductsQuery();
   const { addToCart } = useCart();
-  const { addToWishlist, isInWishlist } = useWishlist();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
-  // Find the current product
-  const products = productsData?.products || [];
-  const product = products.find((p) => p._id === productId);
-  const relatedProducts = products
+  // Get the product from response
+  const product = productResponse?.product;
+  
+  // Get related products from same categories
+  const allProducts = allProductsData?.products || [];
+  const relatedProducts = allProducts
     .filter(
-      (p) => p._id !== productId && p.category?._id === product?.category?._id
+      (p) => {
+        if (!product || p._id === product._id) return false;
+        // Check if products share any category
+        const productCategoryIds = (product.categories || []).map(c => c._id || c).map(String);
+        const pCategoryIds = (p.categories || []).map(c => c._id || c).map(String);
+        return productCategoryIds.some(id => pCategoryIds.includes(id));
+      }
     )
     .slice(0, 6);
 
+  // Set dynamic page title
+  useEffect(() => {
+    if (product) {
+      document.title = `Besiks - ${product.name}`;
+    } else {
+      document.title = "Besiks - Product";
+    }
+  }, [product]);
+
+  // Determine product type
+  const productType = product?.productType || "simple";
+  const isVariableProduct = productType === "variable";
+  
   // Dynamic data from product
   const images = product?.images || ["/img/product.png"];
   const colors = product?.colors ?? [];
   const sizes = product?.sizes ?? [];
-  const hasVariants = (colors?.length || 0) > 0 || (sizes?.length || 0) > 0;
+  const variantOptions = product?.variantOptions || [];
+  const variants = product?.variants || [];
+  
+  // For simple products, use legacy color/size system
+  const hasVariants = !isVariableProduct && ((colors?.length || 0) > 0 || (sizes?.length || 0) > 0);
+  
+  // Find matching variant based on selected options
+  useEffect(() => {
+    if (isVariableProduct && variantOptions.length > 0 && variants.length > 0) {
+      // Only initialize if no options are selected yet
+      if (Object.keys(selectedVariantOptions).length === 0) {
+        // Find first available variant (active and in stock)
+        const availableVariant = variants.find(v => 
+          v.isActive !== false && 
+          v.stock > 0 && 
+          v.options
+        );
+        
+        if (availableVariant) {
+          // Use the options from the first available variant
+          setSelectedVariantOptions(availableVariant.options);
+        } else {
+          // If no available variant, try to find any active variant (even if out of stock)
+          const activeVariant = variants.find(v => 
+            v.isActive !== false && 
+            v.options
+          );
+          
+          if (activeVariant) {
+            setSelectedVariantOptions(activeVariant.options);
+          } else {
+            // Fallback: use first value of each attribute if no variants are available
+            const initialOptions = {};
+            variantOptions.forEach(option => {
+              if (option.values && option.values.length > 0) {
+                initialOptions[option.name] = option.values[0];
+              }
+            });
+            if (Object.keys(initialOptions).length > 0) {
+              setSelectedVariantOptions(initialOptions);
+            }
+          }
+        }
+      }
+    }
+  }, [product, isVariableProduct, variantOptions, variants]);
+  
+  // Update selected variant when options change
+  useEffect(() => {
+    if (isVariableProduct && variants.length > 0) {
+      // Check if all required attributes are selected
+      const allSelected = variantOptions.every(option => 
+        selectedVariantOptions[option.name]
+      );
+      
+      if (allSelected) {
+        // Find matching variant
+        const matchingVariant = variants.find(variant => {
+          if (!variant.options) return false;
+          return variantOptions.every(option => {
+            return variant.options[option.name] === selectedVariantOptions[option.name];
+          });
+        });
+        
+        // Check if variant is changing
+        const newVariantId = matchingVariant?._id?.toString();
+        const previousVariantId = previousVariantIdRef.current;
+        const variantChanged = previousVariantId && newVariantId && previousVariantId !== newVariantId;
+        const isFirstVariantSelection = !previousVariantId && newVariantId;
+        
+        setSelectedVariant(matchingVariant || null);
+        
+        // If variant changed (or first time selecting) and new variant has less stock than current quantity, adjust quantity
+        if ((variantChanged || isFirstVariantSelection) && matchingVariant && quantity > matchingVariant.stock) {
+          setQuantity(matchingVariant.stock);
+          
+        }
+        
+        // Update the ref with the new variant ID
+        if (newVariantId) {
+          previousVariantIdRef.current = newVariantId;
+        }
+        
+        // Reset image index when variant changes
+        setCurrentImageIndex(0);
+      } else {
+        setSelectedVariant(null);
+      }
+    }
+  }, [selectedVariantOptions, variants, variantOptions, isVariableProduct, quantity]);
+  
+  // Get current price, stock, and images based on product type
+  const currentPrice = isVariableProduct && selectedVariant 
+    ? selectedVariant.price 
+    : product?.price || 0;
+  const currentMrp = isVariableProduct && selectedVariant 
+    ? selectedVariant.mrp 
+    : product?.mrp;
+  const currentStock = isVariableProduct && selectedVariant 
+    ? selectedVariant.stock 
+    : product?.stock || 0;
+  
+  // Get current images - prioritize variant images if available, and featured image first
+  const currentImages = useMemo(() => {
+    if (isVariableProduct && selectedVariant) {
+      // Handle backward compatibility: convert old 'image' to 'images' array
+      let variantImages = selectedVariant.images || [];
+      if (selectedVariant.image && !selectedVariant.images) {
+        variantImages = [selectedVariant.image];
+      }
+      if (!Array.isArray(variantImages)) {
+        variantImages = variantImages ? [variantImages] : [];
+      }
+      
+      // If variant has images, use them; otherwise use product images
+      if (variantImages.length > 0) {
+        // Get variant featured image index
+        const variantFeaturedIndex = selectedVariant.featuredImageIndex !== undefined ? selectedVariant.featuredImageIndex : 0;
+        // Reorder to put featured image first
+        const featuredImage = variantImages[variantFeaturedIndex];
+        const otherVariantImages = variantImages.filter((_, idx) => idx !== variantFeaturedIndex);
+        const reorderedVariantImages = featuredImage ? [featuredImage, ...otherVariantImages] : variantImages;
+        
+        // Combine variant images with product images that aren't in variant images
+        const variantImageSet = new Set(reorderedVariantImages);
+        const additionalProductImages = images.filter(img => !variantImageSet.has(img));
+        return [...reorderedVariantImages, ...additionalProductImages];
+      }
+    }
+    
+    // For simple products or when no variant images, prioritize product featured image
+    if (images.length > 0) {
+      const productFeaturedIndex = product?.featuredImageIndex !== undefined ? product.featuredImageIndex : 0;
+      const featuredImage = images[productFeaturedIndex];
+      const otherImages = images.filter((_, idx) => idx !== productFeaturedIndex);
+      return featuredImage ? [featuredImage, ...otherImages] : images;
+    }
+    
+    return images;
+  }, [isVariableProduct, selectedVariant, images, product]);
+
+  // Get available stock - for variable products, use variant stock; for simple products, use product stock
+  const availableStock = useMemo(() => {
+    return isVariableProduct && selectedVariant 
+      ? selectedVariant.stock 
+      : product?.stock || 0;
+  }, [isVariableProduct, selectedVariant, product]);
 
   const handleQuantityChange = (type) => {
     if (type === "increase") {
-      setQuantity((prev) => prev + 1);
+      // Don't allow quantity to exceed available stock
+      if (quantity < availableStock) {
+        setQuantity((prev) => prev + 1);
+      } else {
+        toast.error(`Only ${availableStock} items available in stock`);
+      }
     } else if (type === "decrease" && quantity > 1) {
       setQuantity((prev) => prev - 1);
     }
   };
 
   const handleImageChange = (direction) => {
+    const imageArray = currentImages.length > 0 ? currentImages : images;
     if (direction === "next") {
-      setCurrentImageIndex((prev) => (prev + 1) % images.length);
+      setCurrentImageIndex((prev) => (prev + 1) % imageArray.length);
     } else {
       setCurrentImageIndex(
-        (prev) => (prev - 1 + images.length) % images.length
+        (prev) => (prev - 1 + imageArray.length) % imageArray.length
       );
     }
   };
 
   const handleAddToCart = async () => {
     if (!product) return;
-    await addToCart(product, quantity);
+    
+    // For variable products, check if variant is selected
+    if (isVariableProduct) {
+      if (!selectedVariant) {
+        return;
+      }
+      
+      const productWithVariant = {
+        ...product,
+        selectedVariant: selectedVariant,
+        selectedVariantOptions: selectedVariantOptions,
+        // Override price and stock with variant values
+        price: selectedVariant.price,
+        stock: selectedVariant.stock,
+        sku: selectedVariant.sku || product.sku,
+      };
+      await addToCart(productWithVariant, quantity);
+    } else {
+      await addToCart(product, quantity);
+    }
+  };
+  
+  const handleVariantOptionChange = (attributeName, value) => {
+    setSelectedVariantOptions(prev => ({
+      ...prev,
+      [attributeName]: value
+    }));
   };
 
   const handleAddToWishlist = async () => {
     if (!product) return;
-    await addToWishlist(product);
+    
+    // For variable products, ensure variant is selected
+    if (isVariableProduct && !selectedVariant) {
+      return;
+    }
+    
+    // Prepare product with variant information
+    const productToAdd = isVariableProduct && selectedVariant
+      ? {
+          ...product,
+          selectedVariant: selectedVariant,
+          selectedVariantOptions: selectedVariantOptions,
+          price: selectedVariant.price,
+          stock: selectedVariant.stock,
+          sku: selectedVariant.sku || product.sku,
+        }
+      : product;
+    
+    // Check if product (with variant) is already in wishlist
+    const variantId = selectedVariant?._id?.toString();
+    const variantSku = selectedVariant?.sku;
+    const variantOptions = selectedVariantOptions;
+    
+    const alreadyInWishlist = isInWishlist(product._id, variantId, variantSku, variantOptions);
+    
+    if (alreadyInWishlist) {
+      // Remove from wishlist
+      await removeFromWishlist(product._id, variantId, variantSku, variantOptions);
+    } else {
+      // Add to wishlist
+      await addToWishlist(productToAdd);
+    }
   };
 
   const [shippingOpen, setShippingOpen] = useState(false);
   const [returnsOpen, setReturnsOpen] = useState(false);
+
+  // Ref for Products you may like swiper
+  const relatedProductsSwiperRef = useRef(null);
+  const [isBeginningRelated, setIsBeginningRelated] = useState(true);
+  const [isEndRelated, setIsEndRelated] = useState(false);
 
   // Loading state
   if (productsLoading) {
@@ -136,7 +377,7 @@ const page = () => {
 
   return (
     <>
-      <div className="container mx-auto px-4 sm:px-6 lg:px-16 py-4">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-16 pt-4">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -157,56 +398,68 @@ const page = () => {
       <section className="container mx-auto px-4 sm:px-6 lg:px-16 py-4">
         <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-8">
           {/* Left side - Product Images */}
-          <div className="flex gap-4">
-            {/* Thumbnail Images */}
-            <div className="w-24 h-96 md:h-[500px] lg:h-[550px] flex flex-col overflow-y-auto">
-              <div className={`flex flex-col h-full gap-2`}>
-                {images.map((img, index) => (
-                  <div
-                    key={index}
-                    className={`bg-gray-200 h-24 flex-shrink-0 rounded-lg cursor-pointer border-2 ${
-                      currentImageIndex === index
-                        ? "border-blue-500"
-                        : "border-transparent hover:border-gray-300"
-                    } transition-colors`}
-                    onClick={() => setCurrentImageIndex(index)}
-                  >
-                    <Image
-                      src={img}
-                      alt={`Product image ${index + 1}`}
-                      width={96}
-                      height={images.length <= 4 ? 200 : 80}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
+          <div className="flex flex-col lg:flex-row gap-4">
             {/* Main Image with Navigation */}
-            <div className="flex-1 relative">
+            <div className="flex-1 relative order-1 lg:order-2">
               <div className="h-96 md:h-[500px] lg:h-[550px] bg-gray-200 rounded-lg overflow-hidden relative">
                 <Image
-                  src={images[currentImageIndex]}
+                  src={currentImages[currentImageIndex] || images[0]}
                   alt={product.name}
                   fill
                   className="object-cover"
                 />
 
                 {/* Navigation Arrows */}
-                <button
-                  onClick={() => handleImageChange("prev")}
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md hover:shadow-lg transition-shadow"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => handleImageChange("next")}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md hover:shadow-lg transition-shadow"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
+                {currentImages.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => handleImageChange("prev")}
+                      disabled={currentImageIndex === 0}
+                      className={`absolute left-4 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md transition-shadow ${
+                        currentImageIndex === 0
+                          ? "opacity-50 cursor-not-allowed"
+                          : "hover:shadow-lg cursor-pointer"
+                      }`}
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleImageChange("next")}
+                      disabled={currentImageIndex === currentImages.length - 1}
+                      className={`absolute right-4 top-1/2 transform -translate-y-1/2 bg-white rounded-full p-2 shadow-md transition-shadow ${
+                        currentImageIndex === currentImages.length - 1
+                          ? "opacity-50 cursor-not-allowed"
+                          : "hover:shadow-lg cursor-pointer"
+                      }`}
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
               </div>
+            </div>
+
+            {/* Thumbnail Images */}
+            <div className="w-full lg:w-24 h-auto lg:h-[550px] flex flex-row lg:flex-col overflow-x-auto lg:overflow-y-auto gap-2 order-2 lg:order-1">
+              {currentImages.map((img, index) => (
+                <div
+                  key={index}
+                  className={`bg-gray-200 w-20 h-20 lg:w-24 lg:h-24 flex-shrink-0 rounded-lg cursor-pointer border-2 ${
+                    currentImageIndex === index
+                      ? "border-blue-500"
+                      : "border-transparent hover:border-gray-300"
+                  } transition-colors`}
+                  onClick={() => setCurrentImageIndex(index)}
+                >
+                  <Image
+                    src={img}
+                    alt={`Product image ${index + 1}`}
+                    width={96}
+                    height={96}
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
@@ -217,10 +470,10 @@ const page = () => {
                 {product.name}
               </h1>
               <div className="flex items-center gap-2 mt-2">
-                {product.mrp && Number(product.mrp) > Number(product.price) && (
-                  <span className="text-lg text-gray-400 line-through">₹{product.mrp}</span>
+                {currentMrp && Number(currentMrp) > Number(currentPrice) && (
+                  <span className="text-lg text-gray-400 line-through">₹{currentMrp}</span>
                 )}
-                <span className="text-2xl font-semibold text-gray-900">₹{product.price}</span>
+                <span className="text-2xl font-semibold text-gray-900">₹{currentPrice}</span>
               </div>
               <div className="flex items-center gap-1 mt-2">
                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
@@ -230,71 +483,126 @@ const page = () => {
               </div>
             </div>
 
-            {/* Variant Selectors (grouped to reduce spacing between color and size) */}
-            <div className="space-y-2">
-              {/* Color Selector */}
-              {colors.length > 0 && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Choose your color
-                  </label>
-                  <div className="flex gap-3 py-2">
-                    {colors.map((color) => (
-                      <button
-                        key={color.name}
-                        onClick={() => setSelectedColor(color.name)}
-                        className={`w-8 h-8 rounded-md border-2 cursor-pointer ${
-                          selectedColor === color.name
-                            ? "ring-2"
-                            : "border-gray-300"
-                        }`}
-                        style={{ backgroundColor: color.value }}
-                      />
-                    ))}
+            {/* Variant Selectors */}
+            {isVariableProduct ? (
+              <div className="space-y-4">
+                {variantOptions.map((option) => (
+                  <div key={option.name} className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      {option.name} {selectedVariantOptions[option.name] && `(${selectedVariantOptions[option.name]})`}
+                    </label>
+                    <div className="flex flex-wrap gap-3 py-2">
+                      {option.values.map((value) => {
+                        const isSelected = selectedVariantOptions[option.name] === value;
+                        // Check if this value is available in any active variant
+                        const isAvailable = variants.some(v => 
+                          v.isActive !== false && 
+                          v.stock > 0 && 
+                          v.options[option.name] === value &&
+                          // Check if other selected options match
+                          variantOptions.every(opt => 
+                            opt.name === option.name || 
+                            !selectedVariantOptions[opt.name] ||
+                            v.options[opt.name] === selectedVariantOptions[opt.name]
+                          )
+                        );
+                        
+                        return (
+                          <button
+                            key={value}
+                            onClick={() => handleVariantOptionChange(option.name, value)}
+                            disabled={!isAvailable}
+                            className={`min-w-10 px-3 h-8 rounded-sm border-2 text-sm font-medium transition-colors ${
+                              isSelected
+                                ? "border-gray-800 text-gray-900 bg-gray-100"
+                                : isAvailable
+                                ? "border-gray-300 text-gray-700 hover:border-gray-400 cursor-pointer"
+                                : "border-gray-200 text-gray-400 cursor-not-allowed opacity-50"
+                            }`}
+                          >
+                            {value}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                ))}
+                {!selectedVariant && Object.keys(selectedVariantOptions).length > 0 && (
+                  <p className="text-sm text-red-500">
+                    Please select all options to see availability
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Color Selector */}
+                {colors.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Choose your color
+                    </label>
+                    <div className="flex gap-3 py-2">
+                      {colors.map((color) => (
+                        <button
+                          key={color.name}
+                          onClick={() => setSelectedColor(color.name)}
+                          className={`w-8 h-8 rounded-md border-2 cursor-pointer ${
+                            selectedColor === color.name
+                              ? "ring-2"
+                              : "border-gray-300"
+                          }`}
+                          style={{ backgroundColor: color.value }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-              {/* Size Selector */}
-              {sizes.length > 0 && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Choose your size
-                  </label>
-                  <div className="flex flex-wrap gap-3 py-2">
-                    {sizes.map((size) => (
-                      <button
-                        key={size}
-                        onClick={() => setSelectedSize(size)}
-                        aria-pressed={selectedSize === size}
-                        className={`min-w-10 px-3 h-8 rounded-sm border-2 text-sm font-medium cursor-pointer transition-colors ${
-                          selectedSize === size
-                            ? "border-gray-800 text-gray-900"
-                            : "border-gray-300 text-gray-700 hover:border-gray-400"
-                        }`}
-                      >
-                        {size}
-                      </button>
-                    ))}
+                {/* Size Selector */}
+                {sizes.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Choose your size
+                    </label>
+                    <div className="flex flex-wrap gap-3 py-2">
+                      {sizes.map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setSelectedSize(size)}
+                          aria-pressed={selectedSize === size}
+                          className={`min-w-10 px-3 h-8 rounded-sm border-2 text-sm font-medium cursor-pointer transition-colors ${
+                            selectedSize === size
+                              ? "border-gray-800 text-gray-900"
+                              : "border-gray-300 text-gray-700 hover:border-gray-400"
+                          }`}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
             {/* Shipping/Returns will render below Product details when no variants */}
 
             {/* Stock Status */}
             <div className="flex items-center gap-2">
               <div
                 className={`w-2 h-2 rounded-full ${
-                  product.stock > 0 ? "bg-green-500" : "bg-red-500"
+                  currentStock > 0 ? "bg-green-500" : "bg-red-500"
                 }`}
               ></div>
               <span
                 className={`text-sm ${
-                  product.stock > 0 ? "text-green-600" : "text-red-600"
+                  currentStock > 0 ? "text-green-600" : "text-red-600"
                 }`}
               >
-                {product.stock > 0 ? "In stock" : "Out of stock"}
+                {currentStock > 0 
+                  ? `In stock (${currentStock} available)` 
+                  : isVariableProduct && !selectedVariant
+                  ? "Select options to see availability"
+                  : "Out of stock"}
               </span>
             </div>
 
@@ -312,16 +620,21 @@ const page = () => {
                 <span className="mx-3 text-sm font-medium">{quantity}</span>
                 <button
                   onClick={() => handleQuantityChange("increase")}
-                  className="text-gray-600 hover:text-gray-800 px-2 cursor-pointer"
+                  disabled={quantity >= availableStock}
+                  className={`px-2 ${
+                    quantity >= availableStock
+                      ? "text-gray-400 cursor-not-allowed opacity-50" 
+                      : "text-gray-600 hover:text-gray-800 cursor-pointer"
+                  }`}
                 >
                   +
                 </button>
               </div>
 
               <Button
-                className="flex-1 bg-[#174986] text-white h-12 rounded-sm cursor-pointer"
+                className="flex-1 bg-[#174986] hover:bg-[#174986]/90 text-white h-12 rounded-sm cursor-pointer"
                 onClick={handleAddToCart}
-                disabled={product.stock <= 0}
+                disabled={currentStock <= 0 || (isVariableProduct && !selectedVariant)}
               >
                 Add to Cart <ShoppingCart className="ml-2" />
               </Button>
@@ -336,7 +649,12 @@ const page = () => {
               >
                 <Heart
                   className={`w-4 h-4 ${
-                    isInWishlist(product?._id)
+                    isInWishlist(
+                      product?._id,
+                      selectedVariant?._id?.toString(),
+                      selectedVariant?.sku,
+                      selectedVariantOptions
+                    )
                       ? "fill-red-500 text-red-500"
                       : ""
                   }`}
@@ -424,7 +742,7 @@ const page = () => {
       </section>
 
       {/* Product Information & Specifications */}
-      <section className="container mx-auto px-4 sm:px-6 lg:px-16 py-8">
+      <section className="container mx-auto px-4 sm:px-6 lg:px-16 pt-8 md:py-8">
         <div className="bg-white rounded-lg py-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-gray-900">
@@ -511,64 +829,59 @@ const page = () => {
         </div>
       </section>
 
-      {/* Product Description */}
-      <section className="container mx-auto px-4 sm:px-6 lg:px-16 py-8">
-        <div className="bg-white rounded-lg py-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Description</h2>
-            <button
-              onClick={() => setShowLessDescription(!showLessDescription)}
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
-            >
-              {showLessDescription ? "Show more" : "Show less"}
-              {showLessDescription ? (
-                <ChevronDown className="w-4 h-4" />
-              ) : (
-                <ChevronUp className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-
-          <div
-            className={`transition-all duration-500 ease-in-out overflow-hidden ${
-              showLessDescription
-                ? "max-h-0 opacity-0"
-                : "max-h-[1000px] opacity-100"
-            }`}
-          >
-            <div className="pt-2">
-              <div className="prose prose-gray max-w-none">
-                <p className="text-gray-700 text-sm leading-relaxed mb-4">
-                  {product.description ||
-                    "No description available for this product."}
-                </p>
-              </div>
+      <section className="container mx-auto px-4 sm:px-6 lg:px-16 pt-0 pb-10 md:py-10">
+        <div className="py-4 flex items-center justify-between">
+          <h2 className="text-xl md:text-3xl font-medium">Products you may like</h2>
+          
+          {/* Navigation Arrows */}
+          {relatedProducts.length > 0 && (
+            <div className="flex items-center justify-between gap-4">
+              <button
+                onClick={() => relatedProductsSwiperRef.current?.slidePrev()}
+                disabled={isBeginningRelated}
+                className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-colors ${
+                  isBeginningRelated
+                    ? "border-gray-300 cursor-not-allowed opacity-50"
+                    : "border-[#174986] hover:bg-[#174986]/10"
+                }`}
+                aria-label="Previous slide"
+              >
+                <ChevronLeft className={`w-5 h-5 ${isBeginningRelated ? "text-gray-300" : "text-[#174986]"}`} />
+              </button>
+              <button
+                onClick={() => relatedProductsSwiperRef.current?.slideNext()}
+                disabled={isEndRelated}
+                className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-colors ${
+                  isEndRelated
+                    ? "border-gray-300 cursor-not-allowed opacity-50"
+                    : "border-[#174986] hover:bg-[#174986]/10"
+                }`}
+                aria-label="Next slide"
+              >
+                <ChevronRight className={`w-5 h-5 ${isEndRelated ? "text-gray-300" : "text-[#174986]"}`} />
+              </button>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="container mx-auto px-4 sm:px-6 lg:px-16 py-10">
-        <div className="py-4 flex justify-between items-center">
-          <h2 className="text-3xl font-medium">Products you may like</h2>
-          <Link
-            href="/shop"
-            className="flex items-center gap-2 transition-colors duration-300"
-          >
-            <span className="text-sm md:text-base">Shop all</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          )}
         </div>
 
         {/* Related Products Swiper */}
         <div>
           {relatedProducts.length > 0 ? (
             <Swiper
-              modules={[FreeMode]}
+              modules={[FreeMode, Navigation]}
               spaceBetween={16}
-              slidesPerView={1.2}
+              slidesPerView={2}
               freeMode={true}
               className="products-swiper"
+              onSwiper={(swiper) => {
+                relatedProductsSwiperRef.current = swiper;
+                setIsBeginningRelated(swiper.isBeginning);
+                setIsEndRelated(swiper.isEnd);
+              }}
+              onSlideChange={(swiper) => {
+                setIsBeginningRelated(swiper.isBeginning);
+                setIsEndRelated(swiper.isEnd);
+              }}
               breakpoints={{
                 480: {
                   slidesPerView: 1.5,

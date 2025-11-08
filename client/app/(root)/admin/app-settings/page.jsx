@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   useGetSettingsQuery,
   useCreateSettingsMutation,
   useUpdateLogoMutation,
+  useUpdateFaviconMutation,
   useUpdateHeroBannersMutation,
   useUpdateWeeklyHighlightsMutation,
   useUpdatePromoBannerMutation,
@@ -16,13 +17,286 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { ChevronDown, ChevronRight, ArrowLeft } from "lucide-react";
+import { useGetAllCategoriesQuery } from "@/features/category/categoryApi";
+import { useGetAllProductsQuery } from "@/features/products/productApi";
+
+function LinkSelector({ value, onChange, categories, products }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentView, setCurrentView] = useState("main"); // "main", "pages", "categories", "products", "custom"
+  const [customUrl, setCustomUrl] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const onSelect = (val) => {
+    if (val === "home") {
+      onChange("/");
+      setIsOpen(false);
+      setCurrentView("main");
+    } else if (val === "shop") {
+      onChange("/shop");
+      setIsOpen(false);
+      setCurrentView("main");
+    } else if (val.startsWith("category:")) {
+      const id = val.split(":")[1];
+      const category = categories?.find(c => c._id === id);
+      const categoryIdentifier = category?.slug || id;
+      onChange(`/shop/category/${categoryIdentifier}`);
+      setIsOpen(false);
+      setCurrentView("main");
+    } else if (val.startsWith("product:")) {
+      const id = val.split(":")[1];
+      const product = products?.find(p => p._id === id);
+      const productIdentifier = product?.slug || id;
+      onChange(`/product/${productIdentifier}`);
+      setIsOpen(false);
+      setCurrentView("main");
+    } else if (val === "custom") {
+      if (customUrl) {
+        onChange(customUrl);
+        setIsOpen(false);
+        setCurrentView("main");
+        setCustomUrl("");
+      }
+    }
+  };
+
+  const getDisplayValue = () => {
+    if (!value) return "Choose destination";
+    if (value === "/") return "Home";
+    if (value === "/shop") return "Shop";
+    if (value.startsWith("/shop/category/")) {
+      const slug = value.split("/shop/category/")[1];
+      const category = categories?.find(c => c.slug === slug || c._id === slug);
+      return category ? category.name : value;
+    }
+    if (value.startsWith("/product/")) {
+      const identifier = value.split("/product/")[1];
+      const product = products?.find(p => p.slug === identifier || p._id === identifier);
+      return product ? product.name : value;
+    }
+    return value;
+  };
+
+  const handleBack = () => {
+    setCurrentView("main");
+    setSearchQuery("");
+  };
+
+  const handleViewChange = (view) => {
+    setCurrentView(view);
+    setSearchQuery("");
+  };
+
+  const filteredCategories = categories?.filter(c => 
+    c.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
+  const filteredProducts = products?.filter(p => 
+    p.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
+  return (
+    <div className="relative w-full">
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full justify-between"
+        onClick={() => {
+          setIsOpen(!isOpen);
+          if (!isOpen) {
+            setCurrentView("main");
+            setSearchQuery("");
+          }
+        }}
+      >
+        <span className="truncate">{getDisplayValue()}</span>
+        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </Button>
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => {
+              setIsOpen(false);
+              setCurrentView("main");
+              setSearchQuery("");
+            }}
+          />
+          <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-[400px] overflow-hidden flex flex-col">
+            {/* Header with back button */}
+            {currentView !== "main" && (
+              <div className="flex items-center gap-2 p-2 border-b">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleBack}
+                  className="h-8 px-2"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Button>
+                <span className="text-sm font-semibold">
+                  {currentView === "pages" && "Pages"}
+                  {currentView === "categories" && "Categories"}
+                  {currentView === "products" && "Products"}
+                  {currentView === "custom" && "Custom URL"}
+                </span>
+              </div>
+            )}
+
+            {/* Main Menu */}
+            {currentView === "main" && (
+              <div className="p-1 overflow-y-auto">
+                <div
+                  className="px-2 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded cursor-pointer flex items-center justify-between"
+                  onClick={() => handleViewChange("pages")}
+                >
+                  <span>Pages</span>
+                  <ChevronRight className="h-4 w-4" />
+                </div>
+                <div
+                  className="px-2 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded cursor-pointer flex items-center justify-between"
+                  onClick={() => handleViewChange("categories")}
+                >
+                  <span>Categories</span>
+                  <ChevronRight className="h-4 w-4" />
+                </div>
+                <div
+                  className="px-2 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded cursor-pointer flex items-center justify-between"
+                  onClick={() => handleViewChange("products")}
+                >
+                  <span>Products</span>
+                  <ChevronRight className="h-4 w-4" />
+                </div>
+                <div
+                  className="px-2 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded cursor-pointer flex items-center justify-between"
+                  onClick={() => handleViewChange("custom")}
+                >
+                  <span>Custom URL</span>
+                  <ChevronRight className="h-4 w-4" />
+                </div>
+              </div>
+            )}
+
+            {/* Pages View */}
+            {currentView === "pages" && (
+              <div className="p-1 overflow-y-auto flex-1">
+                <div
+                  className="px-2 py-2 text-sm hover:bg-gray-100 rounded cursor-pointer"
+                  onClick={() => onSelect("home")}
+                >
+                  Home
+                </div>
+                <div
+                  className="px-2 py-2 text-sm hover:bg-gray-100 rounded cursor-pointer"
+                  onClick={() => onSelect("shop")}
+                >
+                  Shop
+                </div>
+              </div>
+            )}
+
+            {/* Categories View */}
+            {currentView === "categories" && (
+              <div className="p-1 overflow-y-auto flex-1 flex flex-col">
+                <Input
+                  placeholder="Search categories..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="mb-2"
+                />
+                <div className="flex-1 overflow-y-auto">
+                  {filteredCategories.length > 0 ? (
+                    filteredCategories.map((c) => (
+                      <div
+                        key={c._id}
+                        className="px-2 py-2 text-sm hover:bg-gray-100 rounded cursor-pointer"
+                        onClick={() => onSelect(`category:${c._id}`)}
+                      >
+                        {c.name}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-2 py-2 text-sm text-gray-500">
+                      {searchQuery ? "No categories found" : "No categories available"}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Products View */}
+            {currentView === "products" && (
+              <div className="p-1 overflow-y-auto flex-1 flex flex-col">
+                <Input
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="mb-2"
+                />
+                <div className="flex-1 overflow-y-auto">
+                  {filteredProducts.length > 0 ? (
+                    filteredProducts.slice(0, 100).map((p) => (
+                      <div
+                        key={p._id}
+                        className="px-2 py-2 text-sm hover:bg-gray-100 rounded cursor-pointer"
+                        onClick={() => onSelect(`product:${p._id}`)}
+                      >
+                        {p.name}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-2 py-2 text-sm text-gray-500">
+                      {searchQuery ? "No products found" : "No products available"}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Custom URL View */}
+            {currentView === "custom" && (
+              <div className="p-1 overflow-y-auto flex flex-col gap-2">
+                <Input
+                  placeholder="Enter custom URL (e.g., /about, /contact)"
+                  value={customUrl}
+                  onChange={(e) => setCustomUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && customUrl) {
+                      onSelect("custom");
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => onSelect("custom")}
+                  disabled={!customUrl}
+                  className="w-full"
+                >
+                  Use Custom URL
+                </Button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function AppSettingsPage() {
   const { data, isLoading, isError, error, refetch } = useGetSettingsQuery();
   const settings = data?.data;
+  const { data: categoriesData } = useGetAllCategoriesQuery();
+  const categories = categoriesData?.categories || [];
+  const { data: productsData } = useGetAllProductsQuery();
+  const products = productsData?.products || [];
 
   const [createSettings] = useCreateSettingsMutation();
   const [updateLogo] = useUpdateLogoMutation();
+  const [updateFavicon] = useUpdateFaviconMutation();
   const [updateHeroBanners] = useUpdateHeroBannersMutation();
   const [updateWeeklyHighlights] = useUpdateWeeklyHighlightsMutation();
   const [updatePromoBanner] = useUpdatePromoBannerMutation();
@@ -30,6 +304,7 @@ export default function AppSettingsPage() {
   const [updateMegaMenu] = useUpdateMegaMenuMutation();
 
   const [logo, setLogo] = useState("");
+  const [favicon, setFavicon] = useState("");
   const [heroBanners, setHeroBanners] = useState([{ image: "", text: "", link: "" }]);
   const [weeklyHighlights, setWeeklyHighlights] = useState([{ image: "", text: "", link: "" }]);
   const [promoBanner, setPromoBanner] = useState({ image: "", text: "", link: "" });
@@ -40,6 +315,7 @@ export default function AppSettingsPage() {
   useEffect(() => {
     if (settings) {
       setLogo(settings.logo || "");
+      setFavicon(settings.favicon || "");
       setHeroBanners(settings.heroBanners?.length ? settings.heroBanners : [{ image: "", text: "", link: "" }]);
       setWeeklyHighlights(
         settings.weeklyHighlights?.length ? settings.weeklyHighlights : [{ image: "", text: "", link: "" }]
@@ -56,6 +332,7 @@ export default function AppSettingsPage() {
     if (!settings) {
       const payload = {
         logo: logo || "",
+        favicon: favicon || "",
         heroBanners: heroBanners?.length ? heroBanners : [],
         weeklyHighlights: weeklyHighlights?.length ? weeklyHighlights : [],
         promoBanner,
@@ -89,6 +366,12 @@ export default function AppSettingsPage() {
     await ensureInitialized();
     await updateLogo({ logo }).unwrap();
     toast.success("Logo updated");
+  };
+
+  const saveFavicon = async () => {
+    await ensureInitialized();
+    await updateFavicon({ favicon }).unwrap();
+    toast.success("Favicon updated");
   };
 
   const saveHeroBanners = async () => {
@@ -151,9 +434,10 @@ export default function AppSettingsPage() {
           ].map((s) => (
             <Button
               key={s.id}
-              variant="outline"
+              variant={activeSection === s.id ? "default" : "outline"}
               size="sm"
               onClick={() => setActiveSection(s.id)}
+              className={activeSection === s.id ? "bg-primary text-primary-foreground" : ""}
             >
               {s.label}
             </Button>
@@ -163,17 +447,38 @@ export default function AppSettingsPage() {
       {activeSection === "logo" && (
       <Card id="logo">
         <CardHeader>
-          <CardTitle>Logo</CardTitle>
+          <CardTitle>Logo & Favicon</CardTitle>
+          <p className="text-sm text-muted-foreground">Update your website logo and favicon</p>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {logo && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logo} alt="Logo" className="h-12 w-auto" />
-          )}
-          <div className="flex items-center gap-2">
-            <Input type="url" placeholder="Logo URL" value={logo} onChange={(e) => setLogo(e.target.value)} />
-            <Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0], setLogo)} />
-            <Button onClick={saveLogo}>Save</Button>
+        <CardContent className="space-y-6">
+          {/* Logo Section */}
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold">Logo</h3>
+            {logo && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logo} alt="Logo" className="h-12 w-auto" />
+            )}
+            <div className="flex items-center gap-2">
+              <Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0], setLogo)} />
+              <Button onClick={saveLogo}>Save Logo</Button>
+            </div>
+          </div>
+
+          {/* Favicon Section */}
+          <div className="space-y-3 border-t pt-6">
+            <h3 className="text-lg font-semibold">Favicon</h3>
+            <p className="text-sm text-muted-foreground">Recommended size: 32x32px or 16x16px. Formats: .ico, .png, .svg</p>
+            {favicon && (
+              <div className="flex items-center gap-4">
+                
+                <img src={favicon} alt="Favicon" className="h-8 w-8" />
+                <span className="text-sm text-muted-foreground">Current favicon preview</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Input type="file" accept="image/x-icon,image/png,image/svg+xml,image/*" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0], setFavicon)} />
+              <Button onClick={saveFavicon}>Save Favicon</Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -191,16 +496,8 @@ export default function AppSettingsPage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={b.image} alt="banner" className="h-24 w-auto" />
               )}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                <Input
-                  placeholder="Image URL"
-                  value={b.image}
-                  onChange={(e) => {
-                    const next = [...heroBanners];
-                    next[idx] = { ...next[idx], image: e.target.value };
-                    setHeroBanners(next);
-                  }}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onArrayUpload(e.target.files[0], idx, "image", heroBanners, setHeroBanners)} />
                 <Input
                   placeholder="Text"
                   value={b.text}
@@ -210,16 +507,18 @@ export default function AppSettingsPage() {
                     setHeroBanners(next);
                   }}
                 />
-                <Input
-                  placeholder="Link"
-                  value={b.link}
-                  onChange={(e) => {
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                <LinkSelector 
+                  value={b.link || ""} 
+                  onChange={(link) => {
                     const next = [...heroBanners];
-                    next[idx] = { ...next[idx], link: e.target.value };
+                    next[idx] = { ...next[idx], link };
                     setHeroBanners(next);
-                  }}
+                  }} 
+                  categories={categories} 
+                  products={products} 
                 />
-                <Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onArrayUpload(e.target.files[0], idx, "image", heroBanners, setHeroBanners)} />
               </div>
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={() => removeItem(heroBanners, setHeroBanners, idx)}>
@@ -254,16 +553,8 @@ export default function AppSettingsPage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={b.image} alt="highlight" className="h-24 w-auto" />
               )}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                <Input
-                  placeholder="Image URL"
-                  value={b.image}
-                  onChange={(e) => {
-                    const next = [...weeklyHighlights];
-                    next[idx] = { ...next[idx], image: e.target.value };
-                    setWeeklyHighlights(next);
-                  }}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onArrayUpload(e.target.files[0], idx, "image", weeklyHighlights, setWeeklyHighlights)} />
                 <Input
                   placeholder="Text"
                   value={b.text}
@@ -273,16 +564,18 @@ export default function AppSettingsPage() {
                     setWeeklyHighlights(next);
                   }}
                 />
-                <Input
-                  placeholder="Link"
-                  value={b.link}
-                  onChange={(e) => {
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                <LinkSelector 
+                  value={b.link || ""} 
+                  onChange={(link) => {
                     const next = [...weeklyHighlights];
-                    next[idx] = { ...next[idx], link: e.target.value };
+                    next[idx] = { ...next[idx], link };
                     setWeeklyHighlights(next);
-                  }}
+                  }} 
+                  categories={categories} 
+                  products={products} 
                 />
-                <Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onArrayUpload(e.target.files[0], idx, "image", weeklyHighlights, setWeeklyHighlights)} />
               </div>
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={() => removeItem(weeklyHighlights, setWeeklyHighlights, idx)}>
@@ -311,23 +604,21 @@ export default function AppSettingsPage() {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={promoBanner.image} alt="promo" className="h-24 w-auto" />
           )}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-            <Input
-              placeholder="Image URL"
-              value={promoBanner.image || ""}
-              onChange={(e) => setPromoBanner({ ...promoBanner, image: e.target.value })}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onArrayUpload(e.target.files[0], 0, "image", [promoBanner], (arr) => setPromoBanner(arr[0]))} />
             <Input
               placeholder="Text"
               value={promoBanner.text || ""}
               onChange={(e) => setPromoBanner({ ...promoBanner, text: e.target.value })}
             />
-            <Input
-              placeholder="Link"
-              value={promoBanner.link || ""}
-              onChange={(e) => setPromoBanner({ ...promoBanner, link: e.target.value })}
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            <LinkSelector 
+              value={promoBanner.link || ""} 
+              onChange={(link) => setPromoBanner({ ...promoBanner, link })} 
+              categories={categories} 
+              products={products} 
             />
-            <Input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && onArrayUpload(e.target.files[0], 0, "image", [promoBanner], (arr) => setPromoBanner(arr[0]))} />
           </div>
           <div className="flex gap-2">
             <Button onClick={savePromoBanner}>Save</Button>
@@ -344,7 +635,12 @@ export default function AppSettingsPage() {
         <CardContent className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <Input placeholder="CTA Text" value={cta.text || ""} onChange={(e) => setCta({ ...cta, text: e.target.value })} />
-            <Input placeholder="CTA Link" value={cta.link || ""} onChange={(e) => setCta({ ...cta, link: e.target.value })} />
+            <LinkSelector 
+              value={cta.link || ""} 
+              onChange={(link) => setCta({ ...cta, link })} 
+              categories={categories} 
+              products={products} 
+            />
           </div>
           <div className="flex gap-2">
             <Button onClick={saveCTA}>Save</Button>

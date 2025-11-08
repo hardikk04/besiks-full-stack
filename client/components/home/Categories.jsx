@@ -53,12 +53,16 @@ const Categories = () => {
   }
 
   return (
-    <section className="py-10">
+    <section className="md:py-10 pt-2">
       <div className="container mx-auto px-4 sm:px-6 lg:px-16">
-        <div className="flex overflow-x-auto scrollbar-hide gap-6 justify-between">
+        <div className="flex overflow-x-auto scrollbar-hide gap-2 md:gap-6">
           {categories.length > 0 ? (
             categories.map((category) => (
-              <Link key={category._id} href={`/shop/category/${category._id}`}>
+              <Link 
+                key={category._id} 
+                href={`/shop/category/${category.slug || category._id}`}
+                className="flex-shrink-0 w-[calc((100%-0.5rem)/3.5)] md:w-auto"
+              >
                 <CategoriesCard
                   title={category.name}
                   img={category.image || "/img/dryer.png"}

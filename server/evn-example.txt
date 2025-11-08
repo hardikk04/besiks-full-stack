@@ -3,4 +3,5 @@ MONGODB_URI=mongodb://localhost:27017/ecommerce
 JWT_SECRET=your_jwt_secret_key_here
 JWT_EXPIRE=7d
 NODE_ENV=development
-FRONTEND_URL=https://your-frontend-domain.com 
+FRONTEND_URL=https://your-frontend-domain.com
+API_BASE_URL=https://api.besiks.com 

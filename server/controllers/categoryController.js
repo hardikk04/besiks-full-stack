@@ -1,10 +1,12 @@
 const Category = require("../models/Category");
 const Product = require("../models/Product");
 const mongoose = require("mongoose");
+const slugify = require("slugify");
 const { mongooseIdValidation } = require("../validation/product/validation");
 const {
   createCategoryValidation,
 } = require("../validation/category/validation");
+const { deleteImageFile } = require("../utils/imageCleanup");
 
 // @desc    Get all categories
 // @route   GET /api/categories
@@ -73,21 +75,24 @@ const searchCategories = async (req, res) => {
   }
 };
 
-// @desc    Get category by ID
+// @desc    Get category by ID or slug
 // @route   GET /api/categories/:id
 // @access  Public
 const getCategoryById = async (req, res) => {
   try {
-    const parsed = mongooseIdValidation.safeParse(req.params.id);
-    if (!parsed.success) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation Error",
-        errors: parsed.error.flatten(),
-      });
+    const identifier = req.params.id;
+    
+    // Check if it's a valid MongoDB ObjectId
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(identifier);
+    let category;
+    
+    if (isObjectId) {
+      category = await Category.findById(identifier);
+    } else {
+      // Try to find by slug
+      category = await Category.findOne({ slug: identifier });
     }
-
-    const category = await Category.findById(parsed.data);
+    
     if (!category) {
       return res
         .status(404)
@@ -100,11 +105,31 @@ const getCategoryById = async (req, res) => {
     });
   } catch (err) {
     console.error(err.message);
-    if (err.kind === "ObjectId") {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// @desc    Get category by slug
+// @route   GET /api/categories/slug/:slug
+// @access  Public
+const getCategoryBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const category = await Category.findOne({ slug });
+    
+    if (!category) {
       return res
         .status(404)
         .json({ success: false, message: "Category not found" });
     }
+    
+    res.status(200).json({
+      success: true,
+      message: "Category fetched successfully",
+      category,
+    });
+  } catch (err) {
+    console.error(err.message);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -124,7 +149,31 @@ const createCategory = async (req, res) => {
       });
     }
 
-    const newCategory = new Category(parsed.data);
+    // If slug is not provided, generate it from name
+    let categoryData = { ...parsed.data };
+    if (!categoryData.slug && categoryData.name) {
+      categoryData.slug = slugify(categoryData.name, { lower: true, strict: true });
+      
+      // Ensure slug uniqueness
+      let baseSlug = categoryData.slug;
+      let counter = 1;
+      while (await Category.findOne({ slug: categoryData.slug })) {
+        categoryData.slug = `${baseSlug}-${counter}`;
+        counter++;
+      }
+    } else if (categoryData.slug) {
+      // Validate slug uniqueness if provided
+      const existingCategory = await Category.findOne({ slug: categoryData.slug });
+      if (existingCategory) {
+        return res.status(400).json({
+          success: false,
+          message: "A category with this slug already exists",
+          errors: { slug: "Slug must be unique" },
+        });
+      }
+    }
+
+    const newCategory = new Category(categoryData);
     const category = await newCategory.save();
     res.status(201).json({
       success: true,
@@ -133,6 +182,15 @@ const createCategory = async (req, res) => {
     });
   } catch (err) {
     console.error(err.message);
+    if (err.code === 11000) {
+      // Duplicate key error
+      const field = Object.keys(err.keyPattern)[0];
+      return res.status(400).json({
+        success: false,
+        message: `Category with this ${field} already exists`,
+        errors: { [field]: `${field} must be unique` },
+      });
+    }
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -158,25 +216,70 @@ const updateCategory = async (req, res) => {
         .json({ success: false, message: "Category not found" });
     }
 
+    // Store old image before update
+    const oldImage = category.image;
+
+    // Handle slug generation/validation if name is being updated
+    let updateData = { ...req.body };
+    if (updateData.name && !updateData.slug) {
+      // If name changes but slug not provided, generate new slug
+      updateData.slug = slugify(updateData.name, { lower: true, strict: true });
+      
+      // Ensure slug uniqueness (excluding current category)
+      let baseSlug = updateData.slug;
+      let counter = 1;
+      while (await Category.findOne({ slug: updateData.slug, _id: { $ne: category._id } })) {
+        updateData.slug = `${baseSlug}-${counter}`;
+        counter++;
+      }
+    } else if (updateData.slug) {
+      // Validate slug uniqueness if provided
+      const existingCategory = await Category.findOne({ 
+        slug: updateData.slug, 
+        _id: { $ne: category._id } 
+      });
+      if (existingCategory) {
+        return res.status(400).json({
+          success: false,
+          message: "A category with this slug already exists",
+          errors: { slug: "Slug must be unique" },
+        });
+      }
+    }
+
     category = await Category.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
+      { $set: updateData },
       { new: true }
     );
 
+    // Delete old image if it's being replaced or removed
+    if (oldImage && (!req.body.image || oldImage !== req.body.image)) {
+      await deleteImageFile(oldImage);
+    }
+
     res.status(200).json({
-      success: false,
+      success: true,
       message: "Category updated successfully",
       category,
     });
   } catch (err) {
     console.error(err.message);
+    if (err.code === 11000) {
+      // Duplicate key error
+      const field = Object.keys(err.keyPattern)[0];
+      return res.status(400).json({
+        success: false,
+        message: `Category with this ${field} already exists`,
+        errors: { [field]: `${field} must be unique` },
+      });
+    }
     if (err.kind === "ObjectId") {
       return res
         .status(404)
         .json({ success: false, message: "Category not found" });
     }
-    res.status(500).json({ success: false, message: "Category not found" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -202,7 +305,16 @@ const deleteCategory = async (req, res) => {
         .json({ success: false, message: "Category not found" });
     }
 
+    // Store image before deletion
+    const categoryImage = category.image;
+
     await Category.deleteOne({ _id: req.params.id }); // instead of category.remove()
+    
+    // Delete category image
+    if (categoryImage) {
+      await deleteImageFile(categoryImage);
+    }
+
     res.status(200).json({ success: true, message: "Category removed" });
   } catch (err) {
     console.error(err.message);
@@ -263,22 +375,30 @@ const updateCategoryStatus = async (req, res) => {
   }
 };
 
-// @desc    Get products by category ID
-// @route   GET /api/categories/:id/products
+// @desc    Get products by category ID or slug
+// @route   GET /api/categories/:id/products or /api/products/category/:slug
 // @access  Public
 const getProductsByCategory = async (req, res) => {
   try {
-    const parsed = mongooseIdValidation.safeParse(req.params.id);
-    if (!parsed.success) {
+    const identifier = req.params.id || req.params.slug;
+    if (!identifier) {
       return res.status(400).json({
         success: false,
-        message: "Validation Error",
-        errors: parsed.error.flatten(),
+        message: "Category identifier is required",
       });
     }
 
-    // Check if category exists
-    const category = await Category.findById(parsed.data);
+    // Check if it's a valid MongoDB ObjectId
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(identifier);
+    let category;
+    
+    if (isObjectId) {
+      category = await Category.findById(identifier);
+    } else {
+      // Try to find by slug
+      category = await Category.findOne({ slug: identifier });
+    }
+    
     if (!category) {
       return res
         .status(404)
@@ -294,9 +414,11 @@ const getProductsByCategory = async (req, res) => {
       isActive = true,
     } = req.query;
 
-    // Build query object
+    // Build query object - use the category._id we found
+    // Mongoose will handle ObjectId conversion automatically, so we can pass category._id directly
+    // For array fields in Mongoose, using the ObjectId directly works correctly
     let query = {
-      categories: new mongoose.Types.ObjectId(parsed.data),
+      categories: category._id, // Mongoose handles ObjectId conversion automatically
       isActive: isActive === "true" || isActive === true,
     };    
 
@@ -311,48 +433,24 @@ const getProductsByCategory = async (req, res) => {
     const sortOrder = order === "desc" ? -1 : 1;
     const sortObj = { [sort]: sortOrder };
 
-    // Execute query to get ALL products in the category
-    // Use native MongoDB driver to handle string category IDs
-    const db = req.app.locals.db || require('mongoose').connection.db;
-    const products = await db.collection('products').find(query).toArray();
+    // Use Mongoose Product model which handles ObjectId type conversion automatically
+    // This ensures proper matching whether category IDs are stored as ObjectIds or strings
+    let products = await Product.find(query)
+      .populate('categories', 'name slug')
+      .populate('tags', 'name')
+      .populate('reviews.user', 'name avatar')
+      .lean();
     
-    // Populate categories, tags, and reviews manually since we're using native driver
-    const populatedProducts = await Promise.all(products.map(async (product) => {
-      // Populate categories
-      const categoryIds = product.categories.map(id => new mongoose.Types.ObjectId(id));
-      const categories = await Category.find({ _id: { $in: categoryIds } }).select('name');
-      
-      // Populate tags if they exist
-      let tags = [];
-      if (product.tags && product.tags.length > 0) {
-        const tagIds = product.tags.map(id => new mongoose.Types.ObjectId(id));
-        tags = await require('../models/Tag').find({ _id: { $in: tagIds } }).select('name');
-      }
-      
-      // Populate reviews if they exist
-      let populatedReviews = [];
-      if (product.reviews && product.reviews.length > 0) {
-        const User = require('../models/User');
-        const userIds = product.reviews.map(review => new mongoose.Types.ObjectId(review.user));
-        const users = await User.find({ _id: { $in: userIds } }).select('name avatar');
-        
-        // Create a map of user data for quick lookup
-        const userMap = new Map();
-        users.forEach(user => userMap.set(user._id.toString(), user));
-        
-        // Populate reviews with user data
-        populatedReviews = product.reviews.map(review => ({
-          ...review,
-          user: userMap.get(review.user.toString()) || { _id: review.user, name: 'Unknown User' }
-        }));
-      }
-      
-      return {
-        ...product,
-        categories,
-        tags,
-        reviews: populatedReviews
-      };
+    // Convert to plain objects and ensure consistent structure
+    const populatedProducts = products.map(product => ({
+      ...product,
+      _id: product._id.toString(),
+      categories: product.categories || [],
+      tags: product.tags || [],
+      reviews: (product.reviews || []).map(review => ({
+        ...review,
+        user: review.user || { name: 'Unknown User' }
+      }))
     }));
     
     // Sort the populated products
@@ -393,6 +491,7 @@ module.exports = {
   getFeaturedCategories,
   searchCategories,
   getCategoryById,
+  getCategoryBySlug,
   getProductsByCategory,
   createCategory,
   updateCategory,

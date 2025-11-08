@@ -8,6 +8,8 @@ const Coupon = require("../models/Coupon");
 const createOrder = async (req, res) => {
   try {
     const { orderItems, shippingAddress, paymentMethod, couponCode } = req.body;
+    console.log(orderItems, shippingAddress, paymentMethod, couponCode);
+    
 
     if (!orderItems || orderItems.length === 0) {
       return res
@@ -21,22 +23,16 @@ const createOrder = async (req, res) => {
     let shippingPrice = 0;
     let couponDiscount = 0;
 
+    // Calculate items price first
     for (const item of orderItems) {
       const product = await Product.findById(item.product);
       if (product) {
-        itemsPrice += product.price * item.quantity;
+        itemsPrice += item.price * item.quantity;
       }
     }
 
-    // Calculate tax (example: 10%)
-    taxPrice = itemsPrice * 0.1;
-
-    // Calculate shipping (example: $10 for orders under $100)
-    shippingPrice = itemsPrice > 100 ? 0 : 10;
-
-    let totalPrice = itemsPrice + taxPrice + shippingPrice;
-
-    // Apply coupon if provided
+    // Apply coupon discount if provided (calculate before tax to match checkout logic)
+    let discountedSubtotal = itemsPrice;
     if (couponCode) {
       const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
 
@@ -47,13 +43,33 @@ const createOrder = async (req, res) => {
         });
         if (coupon.canUserUse(req.user.id, userOrderCount)) {
           couponDiscount = coupon.calculateDiscount(itemsPrice);
-          totalPrice = Math.max(0, totalPrice - couponDiscount);
+          discountedSubtotal = Math.max(0, itemsPrice - couponDiscount);
 
           // Increment coupon usage
           await coupon.incrementUsage();
         }
       }
     }
+
+    // Calculate tax per product using its tax percent, on discounted amount (matching checkout logic)
+    for (const item of orderItems) {
+      const product = await Product.findById(item.product);
+      if (product) {
+        const taxPercent = parseFloat(product.tax || "0");
+        if (!isNaN(taxPercent) && taxPercent > 0) {
+          const lineAmount = item.price * item.quantity;
+          // Proportionally reduce tax base if coupon applied (matching checkout logic)
+          const proportion = itemsPrice > 0 ? lineAmount / itemsPrice : 0;
+          const lineDiscountedBase = discountedSubtotal * proportion;
+          taxPrice += (lineDiscountedBase * taxPercent) / 100;
+        }
+      }
+    }
+
+    // Calculate shipping based on discounted subtotal (matching checkout logic)
+    shippingPrice = discountedSubtotal > 100 ? 0 : 10;
+
+    const totalPrice = discountedSubtotal + taxPrice + shippingPrice;
 
     const order = new Order({
       user: req.user.id,

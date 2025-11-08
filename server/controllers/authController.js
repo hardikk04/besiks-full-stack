@@ -43,6 +43,7 @@ const adminLogin = async (req, res) => {
         secure: process.env.NODE_ENV === "production",
         sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         path: "/",
+        // domain:".besiks.com",
         maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days to match token expiry
       });
 
@@ -119,6 +120,7 @@ const loginUser = async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
+      // domain:".besiks.com",
       maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days to match token expiry
     });
 
@@ -178,6 +180,7 @@ const logout = async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
+      // domain:".besiks.com",
     });
     res.status(200).json({
       success: true,

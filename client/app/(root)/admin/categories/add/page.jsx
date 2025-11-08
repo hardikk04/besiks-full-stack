@@ -28,12 +28,14 @@ import {
 } from "@/features/category/categoryApi";
 import { toast } from "sonner";
 import { uploadToCloudinary } from "@/hooks/uploadImage";
+import slugify from "slugify";
 
 const AddCategoryPage = () => {
   const router = useRouter();
 
   const [formData, setFormData] = useState({
     name: "",
+    slug: "",
     description: "",
     parent: "",
     sortOrder: "0",
@@ -42,6 +44,7 @@ const AddCategoryPage = () => {
   const [image, setImage] = useState(null);
   const [isActive, setIsActive] = useState(true);
   const [errors, setErrors] = useState({});
+  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
 
   const [createCategory, { isLoading: isCategoryLoading }] =
     useCreateCategoryMutation();
@@ -56,11 +59,28 @@ const AddCategoryPage = () => {
   ];
 
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+      
+      // Auto-generate slug from name if name changes and slug wasn't manually edited
+      if (field === "name" && !isSlugManuallyEdited) {
+        updated.slug = slugify(value, { lower: true, strict: true });
+      }
+      
+      return updated;
+    });
 
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const handleSlugChange = (value) => {
+    setIsSlugManuallyEdited(true);
+    setFormData((prev) => ({ ...prev, slug: value }));
+    if (errors.slug) {
+      setErrors((prev) => ({ ...prev, slug: "" }));
     }
   };
 
@@ -113,6 +133,16 @@ const AddCategoryPage = () => {
       newErrors.name = "Category name cannot be more than 50 characters";
     }
 
+    // Slug validation
+    if (formData.slug) {
+      const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+      if (!slugPattern.test(formData.slug)) {
+        newErrors.slug = "Slug must contain only lowercase letters, numbers, and hyphens";
+      } else if (formData.slug.length > 100) {
+        newErrors.slug = "Slug cannot be more than 100 characters";
+      }
+    }
+
     // Description validation
     if (formData.description && formData.description.length > 200) {
       newErrors.description = "Description cannot be more than 200 characters";
@@ -147,6 +177,7 @@ const AddCategoryPage = () => {
     const categoryData = {
       // Basic Information
       name: formData.name.trim(),
+      slug: formData.slug?.trim() || undefined,
       description: formData.description?.trim() || "",
 
       // Image
@@ -254,6 +285,23 @@ const AddCategoryPage = () => {
                 )}
                 <p className="text-xs text-muted-foreground">
                   Maximum 50 characters ({formData.name.length}/50)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="slug">Slug (URL-friendly)</Label>
+                <Input
+                  id="slug"
+                  placeholder="e.g., electronics"
+                  value={formData.slug}
+                  onChange={(e) => handleSlugChange(e.target.value)}
+                  maxLength={100}
+                />
+                {errors.slug && (
+                  <p className="text-sm text-red-500">{errors.slug}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Auto-generated from name. Edit manually if needed. Maximum 100 characters ({formData.slug.length}/100)
                 </p>
               </div>
 

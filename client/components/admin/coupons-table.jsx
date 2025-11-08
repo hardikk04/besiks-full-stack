@@ -27,7 +27,6 @@ import {
   useGetAllCouponQuery,
   useUpdateIsActiveMutation,
 } from "@/features/discount/discountApi";
-import { toast } from "sonner";
 
 export function CouponsTable() {
   const { data, isLoading: isCouponsLoading } = useGetAllCouponQuery();
@@ -86,18 +85,16 @@ export function CouponsTable() {
   const handleDelete = async (couponId) => {
     try {
       await deleteCoupon(couponId).unwrap();
-      toast.success("Coupon deleted successfully");
     } catch (err) {
-      toast.error(err?.data?.message || "Failed to delete coupon");
+      // Error handling without toast
     }
   };
 
   const handleStatusChange = async (couponId) => {
     try {
       await updateIsActive(couponId).unwrap();
-      toast.success("Coupon status updated");
     } catch (err) {
-      toast.error(err?.data?.message || "Failed to update status");
+      // Error handling without toast
     }
   };
 
@@ -125,10 +122,9 @@ export function CouponsTable() {
 
     try {
       await Promise.all(selectedCoupons.map((id) => deleteCoupon(id).unwrap()));
-      toast.success(`${selectedCoupons.length} coupons deleted successfully`);
       setSelectedCoupons([]);
     } catch (err) {
-      toast.error("Failed to delete some coupons");
+      // Error handling without toast
     }
   };
 
@@ -148,13 +144,8 @@ export function CouponsTable() {
     });
 
     if (couponsToUpdate.length === 0) {
-      const statusText = targetIsActive ? "active" : "inactive";
-      toast.info(`All selected coupons are already ${statusText}`);
       return;
     }
-
-    const statusText = targetIsActive ? "activated" : "deactivated";
-    const skippedCount = selectedCoupons.length - couponsToUpdate.length;
 
     try {
       // Update only coupons that need status change
@@ -162,21 +153,9 @@ export function CouponsTable() {
         couponsToUpdate.map((id) => updateIsActive(id).unwrap())
       );
 
-      let message = `${couponsToUpdate.length} coupons ${statusText} successfully`;
-      if (skippedCount > 0) {
-        const currentStatusText = targetIsActive ? "active" : "inactive";
-        message += ` (${skippedCount} already ${currentStatusText})`;
-      }
-
-      toast.success(message);
       setSelectedCoupons([]);
     } catch (err) {
-      toast.error(
-        `Failed to ${statusText.replace(
-          "deactivated",
-          "deactivate"
-        )} some coupons`
-      );
+      // Error handling without toast
     }
   };
 

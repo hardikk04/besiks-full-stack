@@ -22,12 +22,16 @@ import { IconEdit, IconTrash, IconEye, IconSearch } from "@tabler/icons-react";
 import { Input } from "../ui/input";
 import Link from "next/link";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   useDeleteProductMutation,
   useGetAllProductsQuery,
   useUpdateIsActiveMutation,
   useSearchProductQuery,
 } from "@/features/products/productApi";
-import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import useDebounce from "@/hooks/useDebounce";
 
@@ -85,36 +89,37 @@ export function ProductsTable() {
 
   const [updateIsActive] = useUpdateIsActiveMutation();
 
+  // Normalize data structure - search returns {data: {products: [...]}}, getAllProducts returns {products: [...]}
+  const normalizedSearchData = searchData?.data
+    ? { products: searchData.data.products }
+    : searchData;
+
   // Determine which data to display
   const displayData = debouncedSearchQuery.trim()
-    ? searchData
+    ? normalizedSearchData
     : allProductsData;
 
   // Debug logging
   useEffect(() => {
     if (debouncedSearchQuery.trim() && searchData) {
       console.log("Search Data:", searchData);
-      console.log("Products from search:", searchData?.products);
+      console.log("Products from search:", normalizedSearchData?.products);
     }
-  }, [searchData, debouncedSearchQuery]);
+  }, [searchData, debouncedSearchQuery, normalizedSearchData]);
 
   const handleDelete = async (productId) => {
     try {
       await deleteProduct(productId).unwrap();
-
-      toast.success("Product Deleted");
     } catch (err) {
       console.error("❌ Product creation failed:", err);
-      toast.error(err?.data?.message || "❌ Validation failed");
     }
   };
 
   const handleStautsChange = async (productId) => {
     try {
       await updateIsActive(productId).unwrap();
-      toast.success("Product Status Updated");
     } catch (err) {
-      toast.error(err?.data?.message || "❌ Failed to updated status");
+      // Error handling without toast
     }
   };
 
@@ -145,10 +150,9 @@ export function ProductsTable() {
       await Promise.all(
         selectedProducts.map((id) => deleteProduct(id).unwrap())
       );
-      toast.success(`${selectedProducts.length} products deleted successfully`);
       setSelectedProducts([]);
     } catch (err) {
-      toast.error("Failed to delete some products");
+      // Error handling without toast
     }
   };
 
@@ -168,13 +172,8 @@ export function ProductsTable() {
     });
 
     if (productsToUpdate.length === 0) {
-      const statusText = targetIsActive ? "active" : "draft";
-      toast.info(`All selected products are already ${statusText}`);
       return;
     }
-
-    const statusText = targetIsActive ? "activated" : "set to draft";
-    const skippedCount = selectedProducts.length - productsToUpdate.length;
 
     try {
       // Update only products that need status change
@@ -182,18 +181,9 @@ export function ProductsTable() {
         productsToUpdate.map((id) => updateIsActive(id).unwrap())
       );
 
-      let message = `${productsToUpdate.length} products ${statusText} successfully`;
-      if (skippedCount > 0) {
-        const currentStatusText = targetIsActive ? "active" : "draft";
-        message += ` (${skippedCount} already ${currentStatusText})`;
-      }
-
-      toast.success(message);
       setSelectedProducts([]);
     } catch (err) {
-      toast.error(
-        `Failed to ${statusText.replace("set to", "set")} some products`
-      );
+      // Error handling without toast
     }
   };
 
@@ -300,7 +290,57 @@ export function ProductsTable() {
                 </TableCell>
               </TableRow>
             )}
-            {displayData?.products?.filter(product => product && product._id).map((product, index) => (
+            {displayData?.products?.filter(product => product && product._id).map((product, index) => {
+              // Get first category name for display
+              const firstCategory = product.categories && product.categories.length > 0 
+                ? (product.categories[0]?.name || (typeof product.categories[0] === 'string' ? product.categories[0] : null))
+                : null;
+              
+              // Check if product is variable
+              const isVariableProduct = product.productType === "variable";
+              const variants = product?.variants || [];
+              
+              // Calculate display values for variable products
+              let displaySku = product.sku || "-";
+              let displayPrice = product.price || "-";
+              let displayMrp = product.mrp ?? "-";
+              let displayStock = product.stock || 0;
+              
+              if (isVariableProduct && variants.length > 0) {
+                // For SKU: show base SKU or variant count
+                if (product.sku) {
+                  displaySku = product.sku;
+                } else {
+                  displaySku = `Variable (${variants.length} variants)`;
+                }
+                
+                // For Price: show minimum price or price range
+                const activeVariants = variants.filter(v => v.isActive !== false && v.price != null && v.price > 0);
+                if (activeVariants.length > 0) {
+                  const prices = activeVariants.map(v => Number(v.price) || 0).filter(p => p > 0);
+                  if (prices.length > 0) {
+                    const minPrice = Math.min(...prices);
+                    const maxPrice = Math.max(...prices);
+                    displayPrice = minPrice === maxPrice ? minPrice : `${minPrice} - ${maxPrice}`;
+                  }
+                }
+                
+                // For MRP: show minimum MRP or MRP range
+                const variantsWithMrp = activeVariants.filter(v => v.mrp != null && v.mrp > 0);
+                if (variantsWithMrp.length > 0) {
+                  const mrps = variantsWithMrp.map(v => Number(v.mrp) || 0).filter(m => m > 0);
+                  if (mrps.length > 0) {
+                    const minMrp = Math.min(...mrps);
+                    const maxMrp = Math.max(...mrps);
+                    displayMrp = minMrp === maxMrp ? minMrp : `${minMrp} - ${maxMrp}`;
+                  }
+                }
+                
+                // For Stock: sum of all variant stocks
+                displayStock = variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+              }
+              
+              return (
               <TableRow key={product._id}>
                 <TableCell>
                   <Checkbox
@@ -311,23 +351,54 @@ export function ProductsTable() {
                   />
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 max-w-[200px]">
                     <img
-                      src={product.images[0] || "/placeholder.svg"}
+                      src={product.images?.[0] || "/placeholder.svg"}
                       alt={product.name}
-                      className="h-10 w-10 rounded-md object-cover"
+                      className="h-10 w-10 rounded-md object-cover flex-shrink-0"
                     />
-                    <span className="font-medium">{product.name}</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="font-medium truncate block cursor-default">
+                          {product.name}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs break-words">{product.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </TableCell>
-                <TableCell className="font-mono text-sm">
-                  {product.sku}
+                <TableCell className="font-mono text-sm max-w-[120px]">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="truncate block cursor-default">{displaySku}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{displaySku}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </TableCell>
-                <TableCell>{product.categories[0]?.name || "N/A"}</TableCell>
-                <TableCell>{product.price}</TableCell>
-                <TableCell>{product.mrp ?? "-"}</TableCell>
+                <TableCell className="max-w-[150px]">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="truncate block cursor-default">
+                        {firstCategory || "N/A"}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        {product.categories && product.categories.length > 0
+                          ? product.categories.map(cat => cat?.name || cat).join(", ")
+                          : "N/A"}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TableCell>
+                <TableCell>{displayPrice}</TableCell>
+                <TableCell>{displayMrp}</TableCell>
                 <TableCell>{product.tax ?? "-"}</TableCell>
-                <TableCell>{product.stock}</TableCell>
+                <TableCell>{displayStock}</TableCell>
                 <TableCell>
                   <div className="flex items-center space-x-2">
                     <Switch
@@ -358,7 +429,8 @@ export function ProductsTable() {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+            );
+            })}
           </TableBody>
         </Table>
       </div>

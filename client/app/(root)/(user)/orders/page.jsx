@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,9 @@ import Link from "next/link";
 import { useGetMyOrdersQuery } from "@/features/orders/orderApi";
 
 const MyOrdersPage = () => {
+  useEffect(() => {
+    document.title = "Besiks - Orders";
+  }, []);
   const router = useRouter();
   const { data: ordersData, isLoading, isError } = useGetMyOrdersQuery();
 

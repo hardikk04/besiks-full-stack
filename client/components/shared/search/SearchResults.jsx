@@ -50,7 +50,7 @@ const SearchResults = ({ query, onClose }) => {
           {products.slice(0, 5).map((product) => (
             <Link
               key={product._id}
-              href={`/product/${product._id}`}
+              href={`/product/${product.slug || product._id}`}
               onClick={onClose}
               className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors"
             >

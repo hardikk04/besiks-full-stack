@@ -9,6 +9,12 @@ const createCategoryValidation = z.object({
     .trim()
     .max(50, "Category name cannot be more than 50 characters"),
 
+  slug: z
+    .string()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must contain only lowercase letters, numbers, and hyphens")
+    .max(100, "Slug cannot be more than 100 characters")
+    .optional(),
+
   description: z
     .string()
     .max(200, "Description cannot be more than 200 characters")
