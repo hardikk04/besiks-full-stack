@@ -8,7 +8,6 @@ const Coupon = require("../models/Coupon");
 const createOrder = async (req, res) => {
   try {
     const { orderItems, shippingAddress, paymentMethod, couponCode } = req.body;
-    console.log(orderItems, shippingAddress, paymentMethod, couponCode);
     
 
     if (!orderItems || orderItems.length === 0) {
@@ -17,18 +16,119 @@ const createOrder = async (req, res) => {
         .json({ success: false, message: "No order items" });
     }
 
-    // Calculate prices
+    // Validate orderItems structure - should only contain product and quantity
+    for (const item of orderItems) {
+      if (!item.product || !item.quantity) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Each order item must have product and quantity" });
+      }
+      if (typeof item.quantity !== 'number' || item.quantity < 1) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Quantity must be a positive number" });
+      }
+    }
+
+    // Fetch all products and build orderItems with product details from database
+    const orderItemsWithDetails = [];
     let itemsPrice = 0;
     let taxPrice = 0;
     let shippingPrice = 0;
     let couponDiscount = 0;
 
-    // Calculate items price first
+    // Fetch products and validate
     for (const item of orderItems) {
       const product = await Product.findById(item.product);
-      if (product) {
-        itemsPrice += item.price * item.quantity;
+      
+      if (!product) {
+        return res
+          .status(404)
+          .json({ success: false, message: `Product with ID ${item.product} not found` });
       }
+
+      if (!product.isActive) {
+        return res
+          .status(400)
+          .json({ success: false, message: `Product ${product.name} is not available` });
+      }
+
+      // Get product price (for simple products) or handle variable products
+      let productPrice = 0;
+      let selectedVariant = null;
+      
+      if (product.productType === 'simple') {
+        productPrice = product.price;
+        
+        // Check stock availability for simple products
+        if (product.stock < item.quantity) {
+          return res
+            .status(400)
+            .json({ 
+              success: false, 
+              message: `Insufficient stock for ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}` 
+            });
+        }
+      } else if (product.productType === 'variable') {
+        // For variable products, we need variant information
+        // If variantId is provided, use that variant's price
+        if (item.variantId) {
+          selectedVariant = product.variants.id(item.variantId);
+          if (!selectedVariant) {
+            return res
+              .status(404)
+              .json({ success: false, message: `Variant with ID ${item.variantId} not found` });
+          }
+          if (!selectedVariant.isActive) {
+            return res
+              .status(400)
+              .json({ success: false, message: `Variant for ${product.name} is not available` });
+          }
+          productPrice = selectedVariant.price;
+          
+          // Check variant stock
+          if (selectedVariant.stock < item.quantity) {
+            return res
+              .status(400)
+              .json({ 
+                success: false, 
+                message: `Insufficient stock for ${product.name} variant. Available: ${selectedVariant.stock}, Requested: ${item.quantity}` 
+              });
+          }
+        } else {
+          return res
+            .status(400)
+            .json({ success: false, message: `Variant ID is required for variable product ${product.name}` });
+        }
+      } else {
+        return res
+          .status(400)
+          .json({ success: false, message: `Invalid product type for ${product.name}` });
+      }
+
+      // Build order item with details from database
+      const orderItem = {
+        product: product._id,
+        name: product.name,
+        quantity: item.quantity,
+        price: productPrice, // Use price from database, not from frontend
+        image: product.images && product.images.length > 0 
+          ? product.images[product.featuredImageIndex || 0] 
+          : "/placeholder.jpg"
+      };
+
+      // Add variant info if it's a variable product
+      if (selectedVariant) {
+        orderItem.variantId = selectedVariant._id.toString();
+        orderItem.variantOptions = selectedVariant.options;
+        // Use variant image if available
+        if (selectedVariant.images && selectedVariant.images.length > 0) {
+          orderItem.image = selectedVariant.images[selectedVariant.featuredImageIndex || 0];
+        }
+      }
+
+      orderItemsWithDetails.push(orderItem);
+      itemsPrice += productPrice * item.quantity;
     }
 
     // Apply coupon discount if provided (calculate before tax to match checkout logic)
@@ -52,12 +152,12 @@ const createOrder = async (req, res) => {
     }
 
     // Calculate tax per product using its tax percent, on discounted amount (matching checkout logic)
-    for (const item of orderItems) {
-      const product = await Product.findById(item.product);
+    for (const orderItem of orderItemsWithDetails) {
+      const product = await Product.findById(orderItem.product);
       if (product) {
         const taxPercent = parseFloat(product.tax || "0");
         if (!isNaN(taxPercent) && taxPercent > 0) {
-          const lineAmount = item.price * item.quantity;
+          const lineAmount = orderItem.price * orderItem.quantity;
           // Proportionally reduce tax base if coupon applied (matching checkout logic)
           const proportion = itemsPrice > 0 ? lineAmount / itemsPrice : 0;
           const lineDiscountedBase = discountedSubtotal * proportion;
@@ -73,7 +173,7 @@ const createOrder = async (req, res) => {
 
     const order = new Order({
       user: req.user.id,
-      orderItems,
+      orderItems: orderItemsWithDetails,
       shippingAddress,
       paymentMethod,
       itemsPrice,

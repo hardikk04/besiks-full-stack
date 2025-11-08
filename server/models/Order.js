@@ -22,7 +22,15 @@ const orderSchema = new mongoose.Schema({
       type: Number,
       required: true
     },
-    image: String
+    image: String,
+    // Variant information for variable products
+    variantId: {
+      type: String,
+      trim: true
+    },
+    variantOptions: {
+      type: mongoose.Schema.Types.Mixed
+    } // e.g., { "Color": "Red", "Size": "M" }
   }],
   shippingAddress: {
     street: {

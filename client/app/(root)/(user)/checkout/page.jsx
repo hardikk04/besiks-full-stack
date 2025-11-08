@@ -195,28 +195,28 @@ const CheckoutPage = () => {
     try {
       setIsProcessingPayment(true);
       
-      // Prepare order items
-      const orderItems = cart.items.map(item => ({
-        product: item.product._id,
-        name: item.product.name,
-        quantity: item.quantity,
-        price: item.price,
-        image: item.product.images?.[0] || "/placeholder.jpg"
-      }));
+      // Prepare order items - only send product ID, quantity, and variantId (if applicable)
+      // Backend will fetch all product details from database for security
+      const orderItems = cart.items.map(item => {
+        const orderItem = {
+          product: item.product._id || item.product,
+          quantity: item.quantity
+        };
+        
+        // Add variantId for variable products
+        if (item.variantId) {
+          orderItem.variantId = item.variantId;
+        }
+        
+        return orderItem;
+      });
 
-      const totals = calculateTotals();
-
-      // Create order
+      // Create order - backend will calculate all prices
       const orderData = {
         orderItems,
         shippingAddress,
         paymentMethod,
-        couponCode: appliedCoupon?.code || (couponCode || undefined),
-        itemsPrice: totals.itemsPrice,
-        discount: totals.discountAmount || 0,
-        taxPrice: totals.taxPrice,
-        shippingPrice: totals.shippingPrice,
-        totalPrice: totals.totalPrice
+        couponCode: appliedCoupon?.code || (couponCode || undefined)
       };
 
       const result = await createOrderFromCart(orderData);
