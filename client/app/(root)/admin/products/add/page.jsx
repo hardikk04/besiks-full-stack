@@ -72,6 +72,7 @@ const AddProductPage = () => {
   const [selectedVariants, setSelectedVariants] = useState(new Set()); // For bulk selection
   const [bulkEditField, setBulkEditField] = useState(null); // 'price', 'mrp', 'stock', 'sku'
   const manuallyRemovedVariantsRef = useRef(new Set()); // Track manually removed variant option combinations
+  const [colorImages, setColorImages] = useState({}); // { "Red": {images: [], featuredImageIndex: 0}, "Blue": {...} }
 
   const [
     createProduct,
@@ -180,6 +181,35 @@ const AddProductPage = () => {
 
     setVariants(newVariants);
   };
+
+  // Sync color images to variants whenever colorImages changes
+  useEffect(() => {
+    if (productType === "variable" && variants.length > 0 && Object.keys(colorImages).length > 0) {
+      const colorOption = variantOptions.find(opt => opt.name === "Color");
+      if (colorOption) {
+        const updatedVariants = variants.map(variant => {
+          const colorValue = variant.options["Color"];
+          if (colorValue && colorImages[colorValue]) {
+            return {
+              ...variant,
+              images: colorImages[colorValue].images || [],
+              featuredImageIndex: colorImages[colorValue].featuredImageIndex || 0
+            };
+          }
+          return variant;
+        });
+        // Only update if there are actual changes to avoid infinite loops
+        const hasChanges = updatedVariants.some((v, i) => {
+          const oldV = variants[i];
+          return JSON.stringify(v.images) !== JSON.stringify(oldV.images) ||
+                 v.featuredImageIndex !== oldV.featuredImageIndex;
+        });
+        if (hasChanges) {
+          setVariants(updatedVariants);
+        }
+      }
+    }
+  }, [colorImages]);
 
   // Auto-generate variants when options change (Shopify-style)
   const variantOptionsKey = useMemo(() => 
@@ -352,14 +382,13 @@ const AddProductPage = () => {
     toast.success("Image removed");
   };
 
-  // Handle variant image upload
-  const handleVariantImageUpload = async (variantIndex, event) => {
+  // Handle color image upload
+  const handleColorImageUpload = async (colorValue, event) => {
     const files = Array.from(event.target.files);
-    const variant = variants[variantIndex];
-    const currentImages = variant?.images || [];
+    const currentColorImages = colorImages[colorValue]?.images || [];
     
-    if (files.length + currentImages.length > 5) {
-      toast.error("You can only upload up to 5 images per variant");
+    if (files.length + currentColorImages.length > 5) {
+      toast.error("You can only upload up to 5 images per color");
       event.target.value = '';
       return;
     }
@@ -384,7 +413,7 @@ const AddProductPage = () => {
       return;
     }
 
-    toast.loading(`Uploading images for variant ${variantIndex + 1}...`);
+    toast.loading(`Uploading images for ${colorValue}...`);
 
     try {
       const uploadPromises = files.map(async (file) => {
@@ -404,53 +433,55 @@ const AddProductPage = () => {
       });
 
       const uploadedImageUrls = await Promise.all(uploadPromises);
-      const newVariants = [...variants];
-      newVariants[variantIndex] = {
-        ...newVariants[variantIndex],
-        images: [...(newVariants[variantIndex].images || []), ...uploadedImageUrls]
-      };
-      setVariants(newVariants);
+      setColorImages(prev => ({
+        ...prev,
+        [colorValue]: {
+          images: [...(prev[colorValue]?.images || []), ...uploadedImageUrls],
+          featuredImageIndex: prev[colorValue]?.featuredImageIndex || 0
+        }
+      }));
       
       event.target.value = '';
       toast.dismiss();
       toast.success(`${uploadedImageUrls.length} image(s) uploaded successfully`);
     } catch (error) {
-      console.error("Error uploading variant images:", error);
+      console.error("Error uploading color images:", error);
       event.target.value = '';
       toast.dismiss();
       toast.error("Failed to upload images. Please try again.");
     }
   };
 
-  // Remove variant image
-  const removeVariantImage = (variantIndex, imageIndex) => {
-    const newVariants = [...variants];
-    const variant = newVariants[variantIndex];
-    const variantImages = variant.images || [];
-    const currentFeaturedIndex = variant.featuredImageIndex || 0;
+  // Remove color image
+  const removeColorImage = (colorValue, imageIndex) => {
+    const currentColorData = colorImages[colorValue] || { images: [], featuredImageIndex: 0 };
+    const currentFeaturedIndex = currentColorData.featuredImageIndex || 0;
     
-    newVariants[variantIndex] = {
-      ...newVariants[variantIndex],
-      images: variantImages.filter((_, i) => i !== imageIndex),
-      featuredImageIndex: 
-        currentFeaturedIndex === imageIndex
-          ? 0 // If removing featured image, set to first image
-          : currentFeaturedIndex > imageIndex
-          ? currentFeaturedIndex - 1 // Adjust index if removing before featured
-          : currentFeaturedIndex // Keep same if removing after featured
-    };
-    setVariants(newVariants);
+    setColorImages(prev => ({
+      ...prev,
+      [colorValue]: {
+        images: currentColorData.images.filter((_, i) => i !== imageIndex),
+        featuredImageIndex: 
+          currentFeaturedIndex === imageIndex
+            ? 0
+            : currentFeaturedIndex > imageIndex
+            ? currentFeaturedIndex - 1
+            : currentFeaturedIndex
+      }
+    }));
     toast.success("Image removed");
   };
 
-  // Set variant featured image
-  const setVariantFeaturedImage = (variantIndex, imageIndex) => {
-    const newVariants = [...variants];
-    newVariants[variantIndex] = {
-      ...newVariants[variantIndex],
-      featuredImageIndex: imageIndex
-    };
-    setVariants(newVariants);
+  // Set color featured image
+  const setColorFeaturedImage = (colorValue, imageIndex) => {
+    setColorImages(prev => ({
+      ...prev,
+      [colorValue]: {
+        ...prev[colorValue],
+        images: prev[colorValue]?.images || [],
+        featuredImageIndex: imageIndex
+      }
+    }));
   };
 
   const validateForm = () => {
@@ -1297,7 +1328,7 @@ const AddProductPage = () => {
                   Variant Options *
                 </CardTitle>
                 <CardDescription>
-                  Add options like Color, Size, Material. Variants will be created automatically.
+                  Add Size and/or Color options. Variants will be created automatically. Images can only be added for Color variants and will be shared across all sizes of the same color.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1389,45 +1420,27 @@ const AddProductPage = () => {
                   ))}
                 </div>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                  <div className="flex gap-2">
-                    <Input
-                      id="new-attribute-input"
-                      placeholder="Option name (e.g., Color, Size)"
-                      className="flex-1 h-8 text-sm"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          const name = e.target.value.trim();
-                          if (name && !variantOptions.find((o) => o.name === name)) {
-                            setVariantOptions([...variantOptions, { name, values: [] }]);
-                            e.target.value = "";
-                          } else if (variantOptions.find((o) => o.name === name)) {
-                            toast.error(`Option "${name}" already exists`);
-                            e.target.value = "";
-                          }
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8"
-                      onClick={() => {
-                        const input = document.getElementById('new-attribute-input');
-                        const name = input?.value.trim();
-                        if (name && !variantOptions.find((o) => o.name === name)) {
-                          setVariantOptions([...variantOptions, { name, values: [] }]);
-                          if (input) input.value = "";
-                        } else if (name && variantOptions.find((o) => o.name === name)) {
-                          toast.error(`Option "${name}" already exists`);
-                          if (input) input.value = "";
+                  <div className="flex gap-2 items-center">
+                    <Select
+                      onValueChange={(value) => {
+                        if (value && !variantOptions.find((o) => o.name === value)) {
+                          setVariantOptions([...variantOptions, { name: value, values: [] }]);
+                        } else if (value && variantOptions.find((o) => o.name === value)) {
+                          toast.error(`Option "${value}" already exists`);
                         }
                       }}
                     >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Option
-                    </Button>
+                      <SelectTrigger className="flex-1 h-8 text-sm">
+                        <SelectValue placeholder="Select option type (Size or Color)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Size">Size</SelectItem>
+                        <SelectItem value="Color">Color</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground whitespace-nowrap">
+                      Only Size and Color available
+                    </p>
                   </div>
                 </div>
                 {errors.variantOptions && (
@@ -1435,6 +1448,86 @@ const AddProductPage = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Color Images Section */}
+            {variantOptions.some(opt => opt.name === "Color") && (() => {
+              const colorOption = variantOptions.find(opt => opt.name === "Color");
+              const colorValues = colorOption?.values || [];
+              return colorValues.length > 0 ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Color Images</CardTitle>
+                    <CardDescription>
+                      Upload images for each color. These images will be shared across all sizes of the same color.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-6 md:grid-cols-2">
+                      {colorValues.map((colorValue) => (
+                        <div key={colorValue} className="border rounded-lg p-4 space-y-3">
+                          <Label className="text-sm font-semibold">{colorValue}</Label>
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap gap-2">
+                              {(colorImages[colorValue]?.images || []).map((imgUrl, imgIndex) => {
+                                const featuredIndex = colorImages[colorValue]?.featuredImageIndex || 0;
+                                return (
+                                  <div key={imgIndex} className="relative group">
+                                    <img
+                                      src={imgUrl}
+                                      alt={`${colorValue} image ${imgIndex + 1}`}
+                                      className={`w-16 h-16 object-cover rounded border-2 ${
+                                        featuredIndex === imgIndex ? "border-blue-500" : "border-gray-200"
+                                      }`}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => removeColorImage(colorValue, imgIndex)}
+                                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setColorFeaturedImage(colorValue, imgIndex)}
+                                      className={`absolute top-0 left-0 p-0.5 rounded-full transition-all ${
+                                        featuredIndex === imgIndex
+                                          ? "bg-blue-500 text-white opacity-100"
+                                          : "bg-white/80 text-gray-400 opacity-0 group-hover:opacity-100"
+                                      }`}
+                                      title="Set as featured image"
+                                    >
+                                      <Star className={`h-3 w-3 ${featuredIndex === imgIndex ? "fill-current" : ""}`} />
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <input
+                              type="file"
+                              id={`color-image-upload-${colorValue}`}
+                              accept="image/jpeg,image/jpg,image/png,image/webp,image/avif"
+                              multiple
+                              onChange={(e) => handleColorImageUpload(colorValue, e)}
+                              className="hidden"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => document.getElementById(`color-image-upload-${colorValue}`).click()}
+                            >
+                              <Upload className="h-4 w-4 mr-2" />
+                              Add Images
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null;
+            })()}
 
             {/* Variants Table - Shopify Style */}
             {variants.length > 0 && (
@@ -1522,7 +1615,9 @@ const AddProductPage = () => {
                           <TableHead className="min-w-[100px]">MRP</TableHead>
                           <TableHead className="min-w-[100px]">Stock *</TableHead>
                           <TableHead className="min-w-[120px]">SKU</TableHead>
-                          <TableHead className="min-w-[200px]">Images</TableHead>
+                          {variantOptions.some(opt => opt.name === "Color") && (
+                            <TableHead className="min-w-[150px]">Color Images</TableHead>
+                          )}
                           <TableHead className="w-12"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1613,63 +1708,32 @@ const AddProductPage = () => {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <div className="space-y-2">
-                                <div className="flex flex-wrap gap-1">
-                                  {(variant.images || []).map((imgUrl, imgIndex) => {
-                                    const variantFeaturedIndex = variant.featuredImageIndex || 0;
-                                    return (
-                                      <div key={imgIndex} className="relative group">
-                                        <img
-                                          src={imgUrl}
-                                          alt={`Variant image ${imgIndex + 1}`}
-                                          className={`w-12 h-12 object-cover rounded border-2 ${
-                                            variantFeaturedIndex === imgIndex ? "border-blue-500" : "border-gray-200"
-                                          }`}
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() => removeVariantImage(variantIndex, imgIndex)}
-                                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                        >
-                                          <X className="h-3 w-3" />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setVariantFeaturedImage(variantIndex, imgIndex)}
-                                          className={`absolute top-0 left-0 p-0.5 rounded-full transition-all ${
-                                            variantFeaturedIndex === imgIndex
-                                              ? "bg-blue-500 text-white opacity-100"
-                                              : "bg-white/80 text-gray-400 opacity-0 group-hover:opacity-100"
-                                          }`}
-                                          title="Set as featured image"
-                                        >
-                                          <Star className={`h-3 w-3 ${variantFeaturedIndex === imgIndex ? "fill-current" : ""}`} />
-                                        </button>
+                            {variantOptions.some(opt => opt.name === "Color") && (
+                              <TableCell>
+                                {variant.options["Color"] ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {(variant.images || []).slice(0, 3).map((imgUrl, imgIndex) => (
+                                      <img
+                                        key={imgIndex}
+                                        src={imgUrl}
+                                        alt={`${variant.options["Color"]} image`}
+                                        className="w-10 h-10 object-cover rounded border"
+                                      />
+                                    ))}
+                                    {(variant.images || []).length > 3 && (
+                                      <div className="w-10 h-10 rounded border flex items-center justify-center text-xs bg-muted">
+                                        +{(variant.images || []).length - 3}
                                       </div>
-                                    );
-                                  })}
-                                </div>
-                                <input
-                                  type="file"
-                                  id={`variant-image-upload-${variantIndex}`}
-                                  accept="image/jpeg,image/jpg,image/png,image/webp,image/avif"
-                                  multiple
-                                  onChange={(e) => handleVariantImageUpload(variantIndex, e)}
-                                  className="hidden"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() => document.getElementById(`variant-image-upload-${variantIndex}`).click()}
-                                >
-                                  <Upload className="h-3 w-3 mr-1" />
-                                  Add Images
-                                </Button>
-                              </div>
-                            </TableCell>
+                                    )}
+                                    {(variant.images || []).length === 0 && (
+                                      <span className="text-xs text-muted-foreground">No images</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                            )}
                             <TableCell>
                               <Button
                                 type="button"
