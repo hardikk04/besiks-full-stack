@@ -44,6 +44,36 @@ export const useCart = () => {
   // Add item to cart
   const addToCart = async (product, quantity = 1) => {
     try {
+      // Check if item is already in cart with max quantity (for authenticated users)
+      if (isAuthenticated) {
+        const currentCart = getCurrentCart();
+        const cartItem = currentCart.items?.find((item) => {
+          if (item.product._id === product._id) {
+            // For variable products, check variant match
+            if (product.productType === "variable" && product.selectedVariant) {
+              const itemVariantKey = item.variantSku || JSON.stringify(item.variantOptions || {});
+              const productVariantKey = product.selectedVariant.sku || JSON.stringify(product.selectedVariantOptions || product.selectedVariant.options || {});
+              return itemVariantKey === productVariantKey;
+            }
+            // For simple products, just match product ID
+            return !item.variantSku;
+          }
+          return false;
+        });
+
+        if (cartItem) {
+          const availableStock = product.productType === "variable" && product.selectedVariant 
+            ? product.selectedVariant.stock 
+            : product.stock;
+          
+          if (cartItem.quantity >= availableStock) {
+            toast.info(`This item is already in your cart with maximum available quantity (${availableStock})`);
+            openCart(); // Open cart to show the item
+            return;
+          }
+        }
+      }
+
       // Prepare cart item data
       const cartItemData = {
         productId: product._id,
@@ -59,13 +89,45 @@ export const useCart = () => {
 
       if (isAuthenticated) {
         await addToCartMutation(cartItemData).unwrap();
+        toast.success("Item added to cart");
         openCart(); // Open cart sheet after successful addition
       } else {
+        // For guest cart, check before adding
+        const currentCart = getCurrentCart();
+        const cartItem = currentCart.items?.find((item) => {
+          if (item.product._id === product._id) {
+            // For variable products, check variant match
+            if (product.productType === "variable" && product.selectedVariant) {
+              const itemVariantKey = item.variantSku || JSON.stringify(item.variantOptions || {});
+              const productVariantKey = product.selectedVariant.sku || JSON.stringify(product.selectedVariantOptions || product.selectedVariant.options || {});
+              return itemVariantKey === productVariantKey;
+            }
+            // For simple products, just match product ID
+            return !item.variantSku;
+          }
+          return false;
+        });
+
+        if (cartItem) {
+          const availableStock = product.productType === "variable" && product.selectedVariant 
+            ? product.selectedVariant.stock 
+            : product.stock;
+          
+          if (cartItem.quantity >= availableStock) {
+            toast.info(`This item is already in your cart with maximum available quantity (${availableStock})`);
+            openCart(); // Open cart to show the item
+            return;
+          }
+        }
+
         dispatch(addToGuestCart({ product, quantity }));
+        toast.success("Item added to cart");
         openCart(); // Open cart sheet after successful addition
       }
     } catch (error) {
-      // Error handling without toast
+      // Show error message from backend
+      const errorMessage = error?.data?.message || error?.message || "Failed to add item to cart";
+      toast.error(errorMessage);
     }
   };
 
