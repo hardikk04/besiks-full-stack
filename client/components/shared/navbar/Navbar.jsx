@@ -283,7 +283,7 @@ const Navbar = () => {
             </div>
 
             {/* Logo */}
-            <div className="flex items-center md:gap-16">
+            <div className="flex items-center md:gap-8">
             <Link href="/" className="flex items-center">
               <Image
                 src={logoUrl}

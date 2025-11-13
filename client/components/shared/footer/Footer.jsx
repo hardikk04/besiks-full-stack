@@ -14,7 +14,7 @@ const Footer = () => {
   return (
     <footer className="bg-gray-100 border-t">
       <div className="container mx-auto px-4 sm:px-6 lg:px-16 pt-12 pb-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-10 md:gap-22">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-10 md:gap-22">
           {/* Logo and Description */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center">

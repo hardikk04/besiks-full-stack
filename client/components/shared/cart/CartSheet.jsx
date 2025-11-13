@@ -260,9 +260,11 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
             <p className="text-gray-500 mb-6">
               Add some products to get started
             </p>
+            <Link href="/shop"> 
             <Button className="w-full" onClick={() => onOpenChange(false)}>
               Continue Shopping
             </Button>
+            </Link>
           </div>
         ) : (
           <>

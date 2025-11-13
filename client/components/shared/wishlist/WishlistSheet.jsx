@@ -243,9 +243,11 @@ const WishlistSheet = ({ isOpen, onOpenChange, wishlistCount = 0 }) => {
             <p className="text-gray-500 mb-6">
               Add some products to your wishlist
             </p>
-            <Button className="w-full cursor-pointer" onClick={() => onOpenChange(false)}>
-              Continue Shopping
-            </Button>
+            <Link href="/shop"> 
+              <Button className="w-full cursor-pointer" onClick={() => onOpenChange(false)}>
+                Continue Shopping
+              </Button>
+            </Link>
           </div>
         ) : (
           <>
