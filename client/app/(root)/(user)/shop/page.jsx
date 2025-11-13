@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect } from "react";
+import React, { Suspense, useEffect, useRef } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { FreeMode } from "swiper/modules";
 import "swiper/css";
@@ -16,6 +16,7 @@ const ShopContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
+  const swiperRef = useRef(null);
 
   useEffect(() => {
     document.title = "Besiks - Shop";
@@ -44,14 +45,22 @@ const ShopContent = () => {
 
   // Handle filter click - navigate to category route or show all products
   const handleFilterClick = (filterName) => {
+    // Scroll the clicked filter into view in mobile Swiper
+    if (swiperRef.current) {
+      const filterIndex = filters.indexOf(filterName);
+      if (filterIndex !== -1) {
+        swiperRef.current.slideTo(filterIndex, 300);
+      }
+    }
+    
     if (filterName === "All") {
-      router.push("/shop");
+      router.push("/shop", { scroll: false });
     } else {
       const selectedCategory = categories.find(cat => cat.name === filterName);
       if (selectedCategory) {
         // Use slug if available, otherwise fall back to id
         const categoryIdentifier = selectedCategory.slug || selectedCategory._id;
-        router.push(`/shop/category/${categoryIdentifier}`);
+        router.push(`/shop/category/${categoryIdentifier}`, { scroll: false });
       }
     }
   };
@@ -94,6 +103,16 @@ const ShopContent = () => {
                 slidesPerView="auto"
                 freeMode={true}
                 className="filter-swiper"
+                onSwiper={(swiper) => {
+                  swiperRef.current = swiper;
+                  // Scroll to active filter on mount
+                  const activeIndex = filters.indexOf("All");
+                  if (activeIndex !== -1) {
+                    setTimeout(() => {
+                      swiper.slideTo(activeIndex, 0);
+                    }, 100);
+                  }
+                }}
               >
                 {filters.map((filter) => (
                   <SwiperSlide key={filter} className="!w-auto">

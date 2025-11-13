@@ -100,7 +100,7 @@ const page = () => {
 
       <Categories />
       <HeroBanner />
-      <section className="container mx-auto px-4 sm:px-6 lg:px-16 py-10">
+      <section className="container mx-auto px-4 sm:px-6 lg:px-16 max-sm:py-2 py-10">
         <div className="py-4 flex items-center justify-between">
           <h2 className="text-xl md:text-3xl font-medium" suppressHydrationWarning>
             {mounted && isAuthenticated ? "Recent Purchases" : "Best Sellers"}

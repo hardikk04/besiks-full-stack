@@ -337,6 +337,17 @@ const page = () => {
     }
   };
 
+  const handleShare = async () => {
+    try {
+      const currentUrl = window.location.href;
+      await navigator.clipboard.writeText(currentUrl);
+      toast.success("URL copied successfully!");
+    } catch (error) {
+      console.error("Failed to copy URL:", error);
+      toast.error("Failed to copy URL. Please try again.");
+    }
+  };
+
   const [shippingOpen, setShippingOpen] = useState(false);
   const [returnsOpen, setReturnsOpen] = useState(false);
 
@@ -486,47 +497,75 @@ const page = () => {
             {/* Variant Selectors */}
             {isVariableProduct ? (
               <div className="space-y-4">
-                {variantOptions.map((option) => (
-                  <div key={option.name} className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
-                      {option.name} {selectedVariantOptions[option.name] && `(${selectedVariantOptions[option.name]})`}
-                    </label>
-                    <div className="flex flex-wrap gap-3 py-2">
-                      {option.values.map((value) => {
-                        const isSelected = selectedVariantOptions[option.name] === value;
-                        // Check if this value is available in any active variant
-                        const isAvailable = variants.some(v => 
-                          v.isActive !== false && 
-                          v.stock > 0 && 
-                          v.options[option.name] === value &&
-                          // Check if other selected options match
-                          variantOptions.every(opt => 
-                            opt.name === option.name || 
-                            !selectedVariantOptions[opt.name] ||
-                            v.options[opt.name] === selectedVariantOptions[opt.name]
-                          )
-                        );
-                        
-                        return (
-                          <button
-                            key={value}
-                            onClick={() => handleVariantOptionChange(option.name, value)}
-                            disabled={!isAvailable}
-                            className={`min-w-10 px-3 h-8 rounded-sm border-2 text-sm font-medium transition-colors ${
-                              isSelected
-                                ? "border-gray-800 text-gray-900 bg-gray-100"
-                                : isAvailable
-                                ? "border-gray-300 text-gray-700 hover:border-gray-400 cursor-pointer"
-                                : "border-gray-200 text-gray-400 cursor-not-allowed opacity-50"
-                            }`}
-                          >
-                            {value}
-                          </button>
-                        );
-                      })}
+                {variantOptions.map((option, optionIndex) => {
+                  // Determine if this is a color option (first option or option name contains "color")
+                  const isColorOption = optionIndex === 0 || option.name.toLowerCase().includes("color");
+                  
+                  return (
+                    <div key={option.name} className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        {option.name} {selectedVariantOptions[option.name] && `(${selectedVariantOptions[option.name]})`}
+                      </label>
+                      <div className="flex flex-wrap gap-3 py-2">
+                        {option.values.map((value) => {
+                          const isSelected = selectedVariantOptions[option.name] === value;
+                          
+                          // Colors are always available (clickable)
+                          // Sizes are only available if they exist in the selected color
+                          let isAvailable;
+                          if (isColorOption) {
+                            // Color options are always clickable
+                            isAvailable = variants.some(v => 
+                              v.isActive !== false && 
+                              v.options[option.name] === value
+                            );
+                          } else {
+                            // For size options, check if available in selected color
+                            // Get the selected color (first option or option with "color" in name)
+                            const colorOption = variantOptions.find(opt => 
+                              variantOptions.indexOf(opt) === 0 || opt.name.toLowerCase().includes("color")
+                            );
+                            const selectedColor = colorOption ? selectedVariantOptions[colorOption.name] : null;
+                            
+                            if (selectedColor) {
+                              // Check if this size is available in the selected color
+                              isAvailable = variants.some(v => 
+                                v.isActive !== false && 
+                                v.stock > 0 && 
+                                v.options[option.name] === value &&
+                                v.options[colorOption.name] === selectedColor
+                              );
+                            } else {
+                              // If no color selected, check if this size exists in any color
+                              isAvailable = variants.some(v => 
+                                v.isActive !== false && 
+                                v.stock > 0 && 
+                                v.options[option.name] === value
+                              );
+                            }
+                          }
+                          
+                          return (
+                            <button
+                              key={value}
+                              onClick={() => handleVariantOptionChange(option.name, value)}
+                              disabled={!isAvailable}
+                              className={`min-w-10 px-3 h-8 rounded-sm border-2 text-sm font-medium transition-colors ${
+                                isSelected
+                                  ? "border-gray-800 text-gray-900 bg-gray-100"
+                                  : isAvailable
+                                  ? "border-gray-300 text-gray-700 hover:border-gray-400 cursor-pointer"
+                                  : "border-gray-200 text-gray-400 cursor-not-allowed opacity-50"
+                              }`}
+                            >
+                              {value}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {!selectedVariant && Object.keys(selectedVariantOptions).length > 0 && (
                   <p className="text-sm text-red-500">
                     Please select all options to see availability
@@ -664,6 +703,7 @@ const page = () => {
               <Button
                 variant="outline"
                 className="flex items-center bg-[#E6E6E6] justify-center gap-2 rounded-sm cursor-pointer h-12"
+                onClick={handleShare}
               >
                 <Share className="w-4 h-4" />
                 Share

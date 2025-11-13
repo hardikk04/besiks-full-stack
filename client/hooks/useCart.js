@@ -89,7 +89,6 @@ export const useCart = () => {
 
       if (isAuthenticated) {
         await addToCartMutation(cartItemData).unwrap();
-        toast.success("Item added to cart");
         openCart(); // Open cart sheet after successful addition
       } else {
         // For guest cart, check before adding
@@ -121,7 +120,6 @@ export const useCart = () => {
         }
 
         dispatch(addToGuestCart({ product, quantity }));
-        toast.success("Item added to cart");
         openCart(); // Open cart sheet after successful addition
       }
     } catch (error) {

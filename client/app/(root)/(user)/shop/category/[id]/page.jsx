@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useMemo, useCallback, memo, startTransition, useEffect } from "react";
+import React, { Suspense, useMemo, useCallback, memo, startTransition, useEffect, useRef } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { FreeMode } from "swiper/modules";
 import "swiper/css";
@@ -43,8 +43,20 @@ const ProductsGrid = memo(({ products }) => {
 ProductsGrid.displayName = "ProductsGrid";
 
 // Memoized Hero Section - only re-renders when category name or product count changes
-const CategoryHero = memo(({ categoryName, productCount, filters, activeFilter, onFilterClick, categoryImage }) => {
+const CategoryHero = memo(({ categoryName, productCount, filters, activeFilter, onFilterClick, categoryImage, swiperRef }) => {
   const backgroundImage = categoryImage || "/img/dryershop.png";
+  
+  // Scroll to active filter when it changes
+  React.useEffect(() => {
+    if (swiperRef?.current && activeFilter) {
+      const activeIndex = filters.indexOf(activeFilter);
+      if (activeIndex !== -1) {
+        setTimeout(() => {
+          swiperRef.current.slideTo(activeIndex, 300);
+        }, 100);
+      }
+    }
+  }, [activeFilter, filters, swiperRef]);
   
   return (
     <section className="relative py-8 px-4 sm:px-6 lg:px-16 h-[70vh] overflow-hidden container mx-auto">
@@ -79,6 +91,18 @@ const CategoryHero = memo(({ categoryName, productCount, filters, activeFilter, 
               slidesPerView="auto"
               freeMode={true}
               className="filter-swiper"
+              onSwiper={(swiper) => {
+                if (swiperRef) {
+                  swiperRef.current = swiper;
+                  // Scroll to active filter on mount
+                  const activeIndex = filters.indexOf(activeFilter);
+                  if (activeIndex !== -1) {
+                    setTimeout(() => {
+                      swiper.slideTo(activeIndex, 0);
+                    }, 100);
+                  }
+                }
+              }}
             >
               {filters.map((filter) => (
                 <SwiperSlide key={filter} className="!w-auto">
@@ -196,8 +220,19 @@ const CategoryContent = () => {
     return currentCategory?.name || "Category";
   }, [currentCategory?.name]);
 
+  // Swiper ref for mobile filter scroll
+  const swiperRef = useRef(null);
+
   // Memoize filter click handler - update state immediately (no page remount)
   const handleFilterClick = useCallback((filterName) => {
+    // Scroll the clicked filter into view in mobile Swiper
+    if (swiperRef.current) {
+      const filterIndex = filters.indexOf(filterName);
+      if (filterIndex !== -1) {
+        swiperRef.current.slideTo(filterIndex, 300);
+      }
+    }
+    
     if (filterName === "All") {
       router.push("/shop", { scroll: false });
     } else {
@@ -210,7 +245,7 @@ const CategoryContent = () => {
         // URL will be updated in background via useEffect
       }
     }
-  }, [router, categories, selectedCategorySlug]);
+  }, [router, categories, selectedCategorySlug, filters]);
 
   // Show loading state (must be after all hooks)
   if (categoriesLoading || featuredCategoriesLoading || categoryProductsLoading) {
@@ -230,6 +265,7 @@ const CategoryContent = () => {
         activeFilter={activeFilter}
         onFilterClick={handleFilterClick}
         categoryImage={currentCategory?.image}
+        swiperRef={swiperRef}
       />
 
       <section className="container mx-auto px-4 sm:px-6 lg:px-16 py-10">

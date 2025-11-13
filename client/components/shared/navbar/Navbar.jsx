@@ -6,7 +6,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { useGetSettingsQuery } from "@/features/appSettings/appSettingsApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -248,8 +248,42 @@ const Navbar = () => {
     <nav className="sticky top-0 z-50 w-full border-b bg-white">
       <div className="container mx-auto px-4 sm:px-6 lg:px-16">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center md:gap-16 gap-4">
+          {/* Left side: Mobile menu button + Logo */}
+          <div className="flex items-center gap-4">
+            {/* Mobile menu button - Left side on mobile only */}
+            <div className="md:hidden">
+              <Sheet open={isOpen} onOpenChange={(open) => {
+                setIsOpen(open);
+                if (!open) {
+                  // Reset expanded items when menu closes
+                  setExpandedMenuItems({});
+                }
+              }}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9">
+                    <Menu className="!h-5 !w-5" />
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-[80vw] sm:w-[400px] overflow-y-auto px-4">
+                  <SheetHeader>
+                    <SheetTitle>Menu</SheetTitle>
+                  </SheetHeader>
+                  <div className="flex flex-col mt-6">
+                    {navMenu.length > 0 ? (
+                      renderMobileMenuItems(navMenu)
+                    ) : (
+                      <div className="text-center text-gray-500 py-8">
+                        No menu items available
+                      </div>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+
+            {/* Logo */}
+            <div className="flex items-center md:gap-16">
             <Link href="/" className="flex items-center">
               <Image
                 src={logoUrl}
@@ -308,11 +342,12 @@ const Navbar = () => {
                 );
               })}
             </div>
+            </div>
           </div>
           {/* Navigation Links - Center */}
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-1 md:gap-4">
             {/* Search Bar */}
             <div className="hidden md:flex items-center">
               <div className="relative">
@@ -391,35 +426,6 @@ const Navbar = () => {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-
-            {/* Mobile menu button */}
-            <div className="md:hidden">
-              <Sheet open={isOpen} onOpenChange={(open) => {
-                setIsOpen(open);
-                if (!open) {
-                  // Reset expanded items when menu closes
-                  setExpandedMenuItems({});
-                }
-              }}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9">
-                    <Menu className="!h-5 !w-5" />
-                    <span className="sr-only">Open menu</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-[80vw] sm:w-[400px] overflow-y-auto">
-                  <div className="flex flex-col mt-6">
-                    {navMenu.length > 0 ? (
-                      renderMobileMenuItems(navMenu)
-                    ) : (
-                      <div className="text-center text-gray-500 py-8">
-                        No menu items available
-                      </div>
-                    )}
-                  </div>
-                </SheetContent>
-              </Sheet>
-            </div>
           </div>
         </div>
       </div>

@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ShoppingCart, X, Plus, Minus, Edit2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/hooks/useCart";
+import { useGetProductByIdQuery } from "@/features/products/productApi";
 import { toast } from "sonner";
 
 const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
@@ -26,6 +27,15 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
   const [selectedVariantOptions, setSelectedVariantOptions] = useState({});
   const [selectedVariant, setSelectedVariant] = useState(null);
   const router = useRouter();
+  
+  // Fetch full product data when editing variant
+  const { data: fullProductData } = useGetProductByIdQuery(
+    editingVariantItem?.product?._id || editingVariantItem?.product?.slug,
+    { skip: !editingVariantItem || !editingVariantItem.product?._id }
+  );
+  
+  // Use full product data if available, otherwise use cart item product
+  const productForVariantDialog = fullProductData?.product || editingVariantItem?.product;
 
   // Prevent hydration mismatch by only rendering cart count on client side
   useEffect(() => {
@@ -97,24 +107,58 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
 
   // Find matching variant when options change
   useEffect(() => {
-    if (editingVariantItem?.product?.variants?.length > 0 && editingVariantItem?.product?.variantOptions) {
-      const allSelected = editingVariantItem.product.variantOptions.every(option => 
-        selectedVariantOptions[option.name]
-      );
+    const product = productForVariantDialog;
+    if (product?.variants?.length > 0) {
+      // Derive variant options from variants if variantOptions array is not available or empty
+      let variantOptionsArray = product?.variantOptions;
       
-      if (allSelected) {
-        const matchingVariant = editingVariantItem.product.variants.find(variant => {
-          if (!variant.options) return false;
-          return editingVariantItem.product.variantOptions.every(option => {
-            return variant.options[option.name] === selectedVariantOptions[option.name];
-          });
+      // Check if variantOptions exists and has items, otherwise derive from variants
+      if ((!variantOptionsArray || variantOptionsArray.length === 0) && product?.variants?.length > 0) {
+        // Build variant options from variants
+        const optionMap = {};
+        product.variants.forEach(variant => {
+          // Check if variant has options (could be an object or undefined)
+          if (variant && variant.options && typeof variant.options === 'object' && variant.isActive !== false) {
+            const variantOptions = variant.options;
+            Object.keys(variantOptions).forEach(optionName => {
+              if (variantOptions[optionName]) {
+                if (!optionMap[optionName]) {
+                  optionMap[optionName] = new Set();
+                }
+                optionMap[optionName].add(variantOptions[optionName]);
+              }
+            });
+          }
         });
-        setSelectedVariant(matchingVariant || null);
-      } else {
-        setSelectedVariant(null);
+        
+        // Convert to array format
+        if (Object.keys(optionMap).length > 0) {
+          variantOptionsArray = Object.keys(optionMap).map(optionName => ({
+            name: optionName,
+            values: Array.from(optionMap[optionName])
+          }));
+        }
+      }
+      
+      if (variantOptionsArray && variantOptionsArray.length > 0) {
+        const allSelected = variantOptionsArray.every(option => 
+          selectedVariantOptions[option.name]
+        );
+        
+        if (allSelected) {
+          const matchingVariant = product.variants.find(variant => {
+            if (!variant.options) return false;
+            return variantOptionsArray.every(option => {
+              return variant.options[option.name] === selectedVariantOptions[option.name];
+            });
+          });
+          setSelectedVariant(matchingVariant || null);
+        } else {
+          setSelectedVariant(null);
+        }
       }
     }
-  }, [selectedVariantOptions, editingVariantItem]);
+  }, [selectedVariantOptions, editingVariantItem, productForVariantDialog]);
 
   const handleVariantOptionChange = (attributeName, value) => {
     setSelectedVariantOptions(prev => ({
@@ -130,7 +174,8 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
     }
 
     // Remove old item and add new one with updated variant
-    if (!editingVariantItem.product?._id) {
+    const product = productForVariantDialog || editingVariantItem.product;
+    if (!product?._id) {
       toast.error("Product information is missing");
       return;
     }
@@ -138,12 +183,12 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
     await removeItem(editingVariantItem.product._id, editingVariantItem.variantSku, editingVariantItem.variantOptions, editingVariantItem.variantId);
     
     const productWithVariant = {
-      ...editingVariantItem.product,
+      ...product,
       selectedVariant: selectedVariant,
       selectedVariantOptions: selectedVariantOptions,
       price: selectedVariant.price,
       stock: selectedVariant.stock,
-      sku: selectedVariant.sku || editingVariantItem.product?.sku,
+      sku: selectedVariant.sku || product?.sku,
     };
     
     // Add with new variant
@@ -179,7 +224,7 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
           {isClient && totalItems > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
+              className="absolute top-0 right-0 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
             >
               {totalItems}
             </Badge>
@@ -432,49 +477,146 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
         >
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Change Variant - {editingVariantItem.product?.name || "Product"}</DialogTitle>
+              <DialogTitle>Change Variant - {productForVariantDialog?.name || editingVariantItem?.product?.name || "Product"}</DialogTitle>
               <DialogDescription>
                 Select your preferred options
               </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4 py-4">
-              {editingVariantItem.product?.variantOptions?.map((option) => (
-                <div key={option.name} className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    {option.name} <span className="text-red-500">*</span>
-                  </label>
-                  <Select
-                    value={selectedVariantOptions[option.name] || ""}
-                    onValueChange={(value) => handleVariantOptionChange(option.name, value)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder={`Select ${option.name}`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {option.values.map((value) => {
-                        // Check if this value is available
-                        const isAvailable = editingVariantItem.product?.variants?.some(v => 
-                          v.isActive !== false && 
-                          v.stock > 0 && 
-                          v.options[option.name] === value
-                        );
-                        
-                        return (
-                          <SelectItem 
-                            key={value} 
-                            value={value}
-                            disabled={!isAvailable}
-                            className={!isAvailable ? "opacity-50" : ""}
-                          >
-                            {value} {!isAvailable && "(Out of stock)"}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
+              {(() => {
+                const product = productForVariantDialog;
+                
+                if (!product) {
+                  return (
+                    <div className="text-sm text-gray-500 py-4">
+                      Loading product information...
+                    </div>
+                  );
+                }
+                
+                // Derive variant options from variants if variantOptions array is not available or empty
+                let variantOptionsArray = product?.variantOptions;
+                
+                // Check if variantOptions exists and has items, otherwise derive from variants
+                if ((!variantOptionsArray || variantOptionsArray.length === 0) && product?.variants?.length > 0) {
+                  // Build variant options from variants
+                  const optionMap = {};
+                  product.variants.forEach(variant => {
+                    // Check if variant has options (could be an object or undefined)
+                    if (variant && variant.options && typeof variant.options === 'object' && variant.isActive !== false) {
+                      const variantOptions = variant.options;
+                      Object.keys(variantOptions).forEach(optionName => {
+                        if (variantOptions[optionName]) {
+                          if (!optionMap[optionName]) {
+                            optionMap[optionName] = new Set();
+                          }
+                          optionMap[optionName].add(variantOptions[optionName]);
+                        }
+                      });
+                    }
+                  });
+                  
+                  // Convert to array format
+                  if (Object.keys(optionMap).length > 0) {
+                    variantOptionsArray = Object.keys(optionMap).map(optionName => ({
+                      name: optionName,
+                      values: Array.from(optionMap[optionName])
+                    }));
+                  }
+                }
+                
+                if (!variantOptionsArray || variantOptionsArray.length === 0) {
+                  // Debug: Log the product structure to help identify the issue
+                  console.log('Variant options not found. Product structure:', {
+                    hasProduct: !!product,
+                    hasVariants: !!product?.variants,
+                    variantsLength: product?.variants?.length,
+                    variantOptions: product?.variantOptions,
+                    firstVariant: product?.variants?.[0],
+                    productId: product?._id
+                  });
+                  
+                  return (
+                    <div className="text-sm text-gray-500 py-4">
+                      No variant options available for this product.
+                    </div>
+                  );
+                }
+                
+                return variantOptionsArray.map((option, optionIndex) => {
+                  // Determine if this is a color option (first option or option name contains "color")
+                  const isColorOption = optionIndex === 0 || option.name.toLowerCase().includes("color");
+                  
+                  return (
+                    <div key={option.name} className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        {option.name} <span className="text-red-500">*</span>
+                      </label>
+                      <Select
+                        value={selectedVariantOptions[option.name] || ""}
+                        onValueChange={(value) => handleVariantOptionChange(option.name, value)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder={`Select ${option.name}`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {option.values.map((value) => {
+                            // Colors are always available (clickable)
+                            // Sizes are only available if they exist in the selected color
+                            let isAvailable;
+                            if (isColorOption) {
+                              // Color options are always clickable
+                              isAvailable = product?.variants?.some(v => 
+                                v.isActive !== false && 
+                                v.options && 
+                                v.options[option.name] === value
+                              );
+                            } else {
+                              // For size options, check if available in selected color
+                              // Get the selected color (first option or option with "color" in name)
+                              const colorOption = variantOptionsArray.find(opt => 
+                                variantOptionsArray.indexOf(opt) === 0 || opt.name.toLowerCase().includes("color")
+                              );
+                              const selectedColor = colorOption ? selectedVariantOptions[colorOption.name] : null;
+                              
+                              if (selectedColor) {
+                                // Check if this size is available in the selected color
+                                isAvailable = product?.variants?.some(v => 
+                                  v.isActive !== false && 
+                                  v.stock > 0 && 
+                                  v.options &&
+                                  v.options[option.name] === value &&
+                                  v.options[colorOption.name] === selectedColor
+                                );
+                              } else {
+                                // If no color selected, check if this size exists in any color
+                                isAvailable = product?.variants?.some(v => 
+                                  v.isActive !== false && 
+                                  v.stock > 0 && 
+                                  v.options &&
+                                  v.options[option.name] === value
+                                );
+                              }
+                            }
+                            
+                            return (
+                              <SelectItem 
+                                key={value} 
+                                value={value}
+                                disabled={!isAvailable}
+                                className={!isAvailable ? "opacity-50" : ""}
+                              >
+                                {value} {!isAvailable && "(Out of stock)"}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                });
+              })()}
 
               {selectedVariant && (
                 <div className="space-y-2 pt-2 border-t">

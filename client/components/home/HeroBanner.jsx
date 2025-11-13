@@ -25,7 +25,7 @@ const HeroBanner = () => {
 
   return (
     <section className="relative w-full">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-16">
+      <div className="container mx-auto px-4 max-sm:pt-6 sm:px-6 lg:px-16">
         <div className="w-full rounded-xl overflow-hidden relative">
           <Swiper
             modules={[Pagination, Autoplay]}
@@ -44,7 +44,7 @@ const HeroBanner = () => {
               clickable: true,
               dynamicBullets: false,
             }}
-            className="h-[400px] md:h-[500px] lg:h-[600px] w-full hero-swiper"
+            className="h-[200px] md:h-[500px] lg:h-[600px] w-full hero-swiper"
           >
             {banners.map((banner, index) => {
               const BannerContent = (

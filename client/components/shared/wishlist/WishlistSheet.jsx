@@ -207,7 +207,7 @@ const WishlistSheet = ({ isOpen, onOpenChange, wishlistCount = 0 }) => {
           {isClient && totalItems > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
+              className="absolute top-0 right-0 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
             >
               {totalItems}
             </Badge>
