@@ -67,19 +67,32 @@ const page = () => {
   // Get the product from response
   const product = productResponse?.product;
   
-  // Get related products from same categories
+  // Get related products from same categories, or any products if no related products found
   const allProducts = allProductsData?.products || [];
-  const relatedProducts = allProducts
-    .filter(
-      (p) => {
-        if (!product || p._id === product._id) return false;
+  const relatedProducts = useMemo(() => {
+    if (!product) return [];
+    
+    // First, try to find products from same categories
+    const categoryRelated = allProducts
+      .filter((p) => {
+        if (p._id === product._id) return false;
         // Check if products share any category
         const productCategoryIds = (product.categories || []).map(c => c._id || c).map(String);
         const pCategoryIds = (p.categories || []).map(c => c._id || c).map(String);
         return productCategoryIds.some(id => pCategoryIds.includes(id));
-      }
-    )
-    .slice(0, 6);
+      })
+      .slice(0, 6);
+    
+    // If we have related products, return them
+    if (categoryRelated.length > 0) {
+      return categoryRelated;
+    }
+    
+    // Otherwise, return any products (excluding current product)
+    return allProducts
+      .filter((p) => p._id !== product._id)
+      .slice(0, 6);
+  }, [allProducts, product]);
 
   // Set dynamic page title
   useEffect(() => {
@@ -295,10 +308,61 @@ const page = () => {
   };
   
   const handleVariantOptionChange = (attributeName, value) => {
-    setSelectedVariantOptions(prev => ({
-      ...prev,
-      [attributeName]: value
-    }));
+    // Check if this is a color option (first option or option name contains "color")
+    const colorOption = variantOptions.find(opt => 
+      variantOptions.indexOf(opt) === 0 || opt.name.toLowerCase().includes("color")
+    );
+    const isColorOption = colorOption && colorOption.name === attributeName;
+    
+    if (isColorOption) {
+      // When color changes, check other selected options and adjust them if needed
+      setSelectedVariantOptions(prev => {
+        const newOptions = {
+          ...prev,
+          [attributeName]: value // Update the color
+        };
+        
+        // Check each other option and adjust if not available with new color
+        variantOptions.forEach(option => {
+          if (option.name !== attributeName && prev[option.name]) {
+            // Check if the currently selected value is available with the new color
+            const isAvailable = variants.some(v => 
+              v.isActive !== false && 
+              v.stock > 0 && 
+              v.options[option.name] === prev[option.name] &&
+              v.options[attributeName] === value
+            );
+            
+            if (!isAvailable) {
+              // Find first available value for this option with the new color
+              const availableValue = option.values.find(val => {
+                return variants.some(v => 
+                  v.isActive !== false && 
+                  v.stock > 0 && 
+                  v.options[option.name] === val &&
+                  v.options[attributeName] === value
+                );
+              });
+              
+              if (availableValue) {
+                newOptions[option.name] = availableValue;
+              } else {
+                // If no available value, remove this option
+                delete newOptions[option.name];
+              }
+            }
+          }
+        });
+        
+        return newOptions;
+      });
+    } else {
+      // For non-color options, just update that option
+      setSelectedVariantOptions(prev => ({
+        ...prev,
+        [attributeName]: value
+      }));
+    }
   };
 
   const handleAddToWishlist = async () => {
@@ -338,13 +402,39 @@ const page = () => {
   };
 
   const handleShare = async () => {
-    try {
-      const currentUrl = window.location.href;
-      await navigator.clipboard.writeText(currentUrl);
-      toast.success("URL copied successfully!");
-    } catch (error) {
-      console.error("Failed to copy URL:", error);
-      toast.error("Failed to copy URL. Please try again.");
+    const currentUrl = window.location.href;
+    const productName = product?.name || "Check out this product";
+    
+    // Use native share if available (works on both mobile and desktop)
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: productName,
+          text: `Check out this product: ${productName}`,
+          url: currentUrl,
+        });
+      } catch (error) {
+        // User cancelled or error occurred
+        if (error.name !== 'AbortError') {
+          console.error("Error sharing:", error);
+          // Fallback to clipboard if native share fails
+          try {
+            await navigator.clipboard.writeText(currentUrl);
+            toast.success("URL copied successfully!");
+          } catch (clipboardError) {
+            toast.error("Failed to share. Please try again.");
+          }
+        }
+      }
+    } else {
+      // Fallback to clipboard if native share is not available
+      try {
+        await navigator.clipboard.writeText(currentUrl);
+        toast.success("URL copied successfully!");
+      } catch (error) {
+        console.error("Failed to copy URL:", error);
+        toast.error("Failed to copy URL. Please try again.");
+      }
     }
   };
 
@@ -956,11 +1046,12 @@ const page = () => {
             </Swiper>
           ) : (
             <div className="text-center text-muted-foreground py-8">
-              No related products found
+              No products available
             </div>
           )}
         </div>
       </section>
+
     </>
   );
 };

@@ -43,20 +43,42 @@ const ProductsGrid = memo(({ products }) => {
 ProductsGrid.displayName = "ProductsGrid";
 
 // Memoized Hero Section - only re-renders when category name or product count changes
-const CategoryHero = memo(({ categoryName, productCount, filters, activeFilter, onFilterClick, categoryImage, swiperRef }) => {
+const CategoryHero = memo(({ categoryName, productCount, filters, activeFilter, onFilterClick, categoryImage, swiperRef, userClickedFilterRef }) => {
   const backgroundImage = categoryImage || "/img/dryershop.png";
+  const lastScrolledFilterRef = React.useRef(null);
   
-  // Scroll to active filter when it changes
+  // Scroll to active filter only when it changes (e.g., URL navigation), 
+  // but not when user clicks (click handler already scrolls)
+  // This prevents double-scroll when user clicks a category filter
   React.useEffect(() => {
-    if (swiperRef?.current && activeFilter) {
+    // Skip scroll if this filter change was triggered by a user click
+    const wasUserClick = userClickedFilterRef?.current === activeFilter;
+    
+    if (swiperRef?.current && activeFilter && lastScrolledFilterRef.current !== activeFilter && !wasUserClick) {
       const activeIndex = filters.indexOf(activeFilter);
       if (activeIndex !== -1) {
-        setTimeout(() => {
-          swiperRef.current.slideTo(activeIndex, 300);
+        // Use a small delay to ensure swiper is ready
+        const timeoutId = setTimeout(() => {
+          if (swiperRef?.current) {
+            swiperRef.current.slideTo(activeIndex, 300);
+            lastScrolledFilterRef.current = activeFilter;
+            // Clear the user click ref after handling
+            if (userClickedFilterRef) {
+              userClickedFilterRef.current = null;
+            }
+          }
         }, 100);
+        return () => clearTimeout(timeoutId);
       }
+    } else if (wasUserClick) {
+      // Clear the user click ref if it matches
+      if (userClickedFilterRef) {
+        userClickedFilterRef.current = null;
+      }
+      // Update last scrolled to prevent re-scroll
+      lastScrolledFilterRef.current = activeFilter;
     }
-  }, [activeFilter, filters, swiperRef]);
+  }, [activeFilter, filters, swiperRef, userClickedFilterRef]);
   
   return (
     <section className="relative py-8 px-4 sm:px-6 lg:px-16 h-[70vh] overflow-hidden container mx-auto">
@@ -222,9 +244,14 @@ const CategoryContent = () => {
 
   // Swiper ref for mobile filter scroll
   const swiperRef = useRef(null);
+  // Ref to track user-initiated filter clicks to prevent double-scroll
+  const userClickedFilterRef = useRef(null);
 
   // Memoize filter click handler - update state immediately (no page remount)
   const handleFilterClick = useCallback((filterName) => {
+    // Mark this as a user click to prevent useEffect from scrolling again
+    userClickedFilterRef.current = filterName;
+    
     // Scroll the clicked filter into view in mobile Swiper
     if (swiperRef.current) {
       const filterIndex = filters.indexOf(filterName);
@@ -266,6 +293,7 @@ const CategoryContent = () => {
         onFilterClick={handleFilterClick}
         categoryImage={currentCategory?.image}
         swiperRef={swiperRef}
+        userClickedFilterRef={userClickedFilterRef}
       />
 
       <section className="container mx-auto px-4 sm:px-6 lg:px-16 py-10">

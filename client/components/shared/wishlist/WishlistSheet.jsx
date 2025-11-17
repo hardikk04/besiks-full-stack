@@ -169,10 +169,68 @@ const WishlistSheet = ({ isOpen, onOpenChange, wishlistCount = 0 }) => {
   }, [selectedVariantOptions, addingToCartProduct]);
 
   const handleVariantOptionChange = (attributeName, value) => {
-    setSelectedVariantOptions(prev => ({
-      ...prev,
-      [attributeName]: value
-    }));
+    // Get variantOptions from product
+    const product = addingToCartProduct;
+    const variantOptions = product?.variantOptions || [];
+    const variants = product?.variants || [];
+    
+    // Check if this is a color option (first option or option name contains "color")
+    const colorOption = variantOptions.find(opt => 
+      variantOptions.indexOf(opt) === 0 || opt.name.toLowerCase().includes("color")
+    );
+    const isColorOption = colorOption && colorOption.name === attributeName;
+    
+    if (isColorOption) {
+      // When color changes, check other selected options and adjust them if needed
+      setSelectedVariantOptions(prev => {
+        const newOptions = {
+          ...prev,
+          [attributeName]: value // Update the color
+        };
+        
+        // Check each other option and adjust if not available with new color
+        variantOptions.forEach(option => {
+          if (option.name !== attributeName && prev[option.name]) {
+            // Check if the currently selected value is available with the new color
+            const isAvailable = variants.some(v => 
+              v.isActive !== false && 
+              v.stock > 0 && 
+              v.options && 
+              v.options[option.name] === prev[option.name] &&
+              v.options[attributeName] === value
+            );
+            
+            if (!isAvailable) {
+              // Find first available value for this option with the new color
+              const availableValue = option.values.find(val => {
+                return variants.some(v => 
+                  v.isActive !== false && 
+                  v.stock > 0 && 
+                  v.options && 
+                  v.options[option.name] === val &&
+                  v.options[attributeName] === value
+                );
+              });
+              
+              if (availableValue) {
+                newOptions[option.name] = availableValue;
+              } else {
+                // If no available value, remove this option
+                delete newOptions[option.name];
+              }
+            }
+          }
+        });
+        
+        return newOptions;
+      });
+    } else {
+      // For non-color options, just update that option
+      setSelectedVariantOptions(prev => ({
+        ...prev,
+        [attributeName]: value
+      }));
+    }
   };
 
   const handleAddToCartFromWishlist = async () => {

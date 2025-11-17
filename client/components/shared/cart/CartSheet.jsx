@@ -54,12 +54,12 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
   const totalItems = actualCartCount;
   const totalPrice = cart.totalPrice || 0;
 
-  const updateQuantity = async (productId, newQuantity, variantSku, variantOptions, item) => {
-    // Get available stock from the item
-    let availableStock = item?.product?.stock || 0;
+  // Helper function to get available stock for an item
+  const getAvailableStock = (item) => {
+    if (!item?.product) return 0;
     
-    // For variable products, check variant stock
-    if (item?.product?.productType === "variable" && item?.variantOptions && item?.product?.variants) {
+    // For variable products, get stock from variant
+    if (item.product.productType === "variable" && item.variantOptions && item.product.variants) {
       const variant = item.product.variants.find(v => {
         if (!v.options) return false;
         const itemOptions = item.variantOptions;
@@ -68,12 +68,20 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
         ) && Object.keys(v.options).length === Object.keys(itemOptions).length;
       });
       if (variant) {
-        availableStock = variant.stock;
+        return Number(variant.stock) || 0;
       }
     }
     
+    // For simple products, get stock from product
+    return Number(item.product.stock) || 0;
+  };
+
+  const updateQuantity = async (productId, newQuantity, variantSku, variantOptions, item) => {
+    // Get available stock using the helper function
+    const availableStock = getAvailableStock(item);
+    
     // Prevent quantity from exceeding available stock
-    if (newQuantity > availableStock) {
+    if (availableStock > 0 && newQuantity > availableStock) {
       toast.error(`Only ${availableStock} items available in stock`);
       return;
     }
@@ -161,10 +169,91 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
   }, [selectedVariantOptions, editingVariantItem, productForVariantDialog]);
 
   const handleVariantOptionChange = (attributeName, value) => {
-    setSelectedVariantOptions(prev => ({
-      ...prev,
-      [attributeName]: value
-    }));
+    // Get variantOptions from product
+    const product = productForVariantDialog || editingVariantItem?.product;
+    const variants = product?.variants || [];
+    let variantOptionsArray = product?.variantOptions || [];
+    
+    // Derive variant options from variants if variantOptions array is not available
+    if ((!variantOptionsArray || variantOptionsArray.length === 0) && variants.length > 0) {
+      const optionMap = {};
+      variants.forEach(variant => {
+        if (variant && variant.options && typeof variant.options === 'object' && variant.isActive !== false) {
+          Object.keys(variant.options).forEach(optionName => {
+            if (variant.options[optionName]) {
+              if (!optionMap[optionName]) {
+                optionMap[optionName] = new Set();
+              }
+              optionMap[optionName].add(variant.options[optionName]);
+            }
+          });
+        }
+      });
+      if (Object.keys(optionMap).length > 0) {
+        variantOptionsArray = Object.keys(optionMap).map(optionName => ({
+          name: optionName,
+          values: Array.from(optionMap[optionName])
+        }));
+      }
+    }
+    
+    // Check if this is a color option (first option or option name contains "color")
+    const colorOption = variantOptionsArray.find(opt => 
+      variantOptionsArray.indexOf(opt) === 0 || opt.name.toLowerCase().includes("color")
+    );
+    const isColorOption = colorOption && colorOption.name === attributeName;
+    
+    if (isColorOption) {
+      // When color changes, check other selected options and adjust them if needed
+      setSelectedVariantOptions(prev => {
+        const newOptions = {
+          ...prev,
+          [attributeName]: value // Update the color
+        };
+        
+        // Check each other option and adjust if not available with new color
+        variantOptionsArray.forEach(option => {
+          if (option.name !== attributeName && prev[option.name]) {
+            // Check if the currently selected value is available with the new color
+            const isAvailable = variants.some(v => 
+              v.isActive !== false && 
+              v.stock > 0 && 
+              v.options && 
+              v.options[option.name] === prev[option.name] &&
+              v.options[attributeName] === value
+            );
+            
+            if (!isAvailable) {
+              // Find first available value for this option with the new color
+              const availableValue = option.values.find(val => {
+                return variants.some(v => 
+                  v.isActive !== false && 
+                  v.stock > 0 && 
+                  v.options && 
+                  v.options[option.name] === val &&
+                  v.options[attributeName] === value
+                );
+              });
+              
+              if (availableValue) {
+                newOptions[option.name] = availableValue;
+              } else {
+                // If no available value, remove this option
+                delete newOptions[option.name];
+              }
+            }
+          }
+        });
+        
+        return newOptions;
+      });
+    } else {
+      // For non-color options, just update that option
+      setSelectedVariantOptions(prev => ({
+        ...prev,
+        [attributeName]: value
+      }));
+    }
   };
 
   const handleUpdateVariant = async () => {
@@ -417,7 +506,7 @@ const CartSheet = ({ isOpen, onOpenChange, cartCount = 0 }) => {
                               );
                             }
                           }}
-                          disabled={!item.product?._id}
+                          disabled={!item.product?._id || item.quantity >= getAvailableStock(item)}
                           className="w-8 cursor-pointer h-8 text-white flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Plus className="h-3 w-3" color="#174986"/>

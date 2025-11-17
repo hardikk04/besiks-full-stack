@@ -249,7 +249,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-16">
         <div className="flex h-16 items-center justify-between">
           {/* Left side: Mobile menu button + Logo */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             {/* Mobile menu button - Left side on mobile only */}
             <div className="md:hidden">
               <Sheet open={isOpen} onOpenChange={(open) => {
